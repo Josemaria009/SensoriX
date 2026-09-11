@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SensoriX Simulation - Monitoreo Multi-SITE</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --accent-glow: rgba(56, 189, 248, 0.4);
+      --status-normal: #22c55e;
+      --status-warning: #eab308;
+      --status-danger: #ef4444;
+      --status-offline: #64748b;
+      --border-color: #475569;
+      --shadow-glow: 0 10px 25px rgba(56, 189, 248, 0.15);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg-primary); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+    
+    .app-container { display: flex; min-height: 100vh; position: relative; }
+
+    /* ---------- Animaciones Fluidas & Sofisticadas ---------- */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes cardEnter {
+      from { opacity: 0; transform: translateY(16px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes pulseCritical {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
+      50%      { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    }
+    @keyframes pulseWarning {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.35); }
+      50%      { box-shadow: 0 0 0 6px rgba(234, 179, 8, 0); }
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(40px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateX(0); }
+      to   { opacity: 0; transform: translateX(40px); }
+    }
+    @keyframes modalPop {
+      from { opacity: 0; transform: scale(0.9) translateY(20px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* Animación Sofisticada de Presentación SensoriX */
+    @keyframes sensorixIntro {
+      0% { opacity: 0; transform: translateY(-10px) scale(0.99); filter: blur(4px); }
+      100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    }
+    @keyframes heroScan {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(1000%); }
+    }
+    @keyframes sensorixGlow {
+      0%, 100% { box-shadow: 0 4px 20px rgba(56, 189, 248, 0.15), inset 0 0 15px rgba(56, 189, 248, 0.05); border-color: rgba(56, 189, 248, 0.3); }
+      50% { box-shadow: 0 6px 30px rgba(56, 189, 248, 0.35), inset 0 0 25px rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.7); }
+    }
+    @keyframes pulseDot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.4); opacity: 0.4; }
+    }
+    @keyframes floatParticle {
+      0% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
+      50% { transform: translateY(-12px) translateX(8px); opacity: 0.8; }
+      100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
+    }
+
+    @keyframes glowPulse {
+      0%, 100% { border-color: rgba(56, 189, 248, 0.4); box-shadow: 0 0 20px rgba(56, 189, 248, 0.25); }
+      50% { border-color: rgba(56, 189, 248, 0.9); box-shadow: 0 0 35px rgba(56, 189, 248, 0.45); }
+    }
+    @keyframes floatIcon {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(5deg); }
+    }
+
+    /* ---------- Banner de Animación Principal SensoriX ---------- */
+    .sensorix-hero-banner {
+      position: relative;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.8) 100%);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 16px;
+      padding: 1.5rem 2rem;
+      margin-bottom: 2rem;
+      overflow: hidden;
+      animation: sensorixIntro 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards, sensorixGlow 4s infinite ease-in-out;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1.2rem;
+      backdrop-filter: blur(8px);
+    }
+
+    .sensorix-hero-banner::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: heroScan 3.5s linear infinite;
+      opacity: 0.75;
+      pointer-events: none;
+    }
+
+    .sensorix-hero-title-box { display: flex; align-items: center; gap: 1.25rem; z-index: 2; }
+    .sensorix-hero-icon {
+      font-size: 2.8rem;
+      color: var(--accent);
+      filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.6));
+      animation: floatIcon 4s infinite ease-in-out;
+    }
+
+    .sensorix-hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      background-color: var(--status-normal);
+      border-radius: 50%;
+      animation: pulseDot 1.6s infinite ease-in-out;
+    }
+
+    .sensorix-particles {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--accent);
+      border-radius: 50%;
+      opacity: 0.4;
+      filter: blur(1px);
+      animation: floatParticle 5s infinite ease-in-out;
+    }
+
+    /* ---------- Sidebar & Marca ---------- */
+    .sidebar {
+      width: 270px;
+      background-color: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      display: flex; 
+      flex-direction: column; 
+      padding: 1.5rem 1rem;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 100;
+    }
+    
+    .brand { 
+      display: flex; 
+      align-items: center; 
+      gap: 0.85rem; 
+      margin-bottom: 2rem; 
+      padding: 0.25rem 0.5rem;
+    }
+    .brand-icon { 
+      font-size: 2rem; 
+      color: var(--accent); 
+      filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.4));
+    }
+    .brand-text-group { display: flex; flex-direction: column; }
+    .brand-title { font-size: 1.35rem; font-weight: 800; letter-spacing: 0.5px; line-height: 1.1; }
+    .brand-subtitle { 
+      font-size: 0.62rem; 
+      font-weight: 600; 
+      letter-spacing: 3.5px; 
+      color: var(--accent); 
+      text-transform: uppercase;
+      margin-top: 3px;
+      opacity: 0.9;
+    }
+
+    .nav-menu { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.85rem; padding: 0.8rem 1rem;
+      color: var(--text-secondary); text-decoration: none; border-radius: 10px;
+      transition: all 0.22s ease-in-out; cursor: pointer; font-size: 0.92rem;
+    }
+    .nav-item i { width: 20px; text-align: center; transition: transform 0.2s ease; }
+    .nav-item:hover, .nav-item.active { 
+      background-color: var(--bg-card); 
+      color: var(--accent); 
+      transform: translateX(4px); 
+    }
+    .nav-item:hover i, .nav-item.active i { transform: scale(1.15); }
+
+    /* ---------- Header Móvil ---------- */
+    .mobile-header {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 1.25rem;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 90;
+    }
+    .mobile-menu-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+    .mobile-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 95;
+      backdrop-filter: blur(3px);
+    }
+
+    /* ---------- Área de Contenido ---------- */
+    .main-content { flex: 1; padding: 2rem; overflow-y: auto; max-width: 1400px; margin: 0 auto; width: 100%; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.8rem; flex-wrap: wrap; gap: 1rem; }
+    .content-section { display: none; }
+    .content-section.active { display: block; animation: fadeInUp .35s ease-out; }
+
+    /* ---------- Tarjetas y Grids ---------- */
+    .sites-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1.5rem; margin-top: 1rem; }
+    .site-card {
+      background: var(--bg-secondary); border-radius: 14px; border: 1px solid var(--border-color);
+      padding: 1.35rem; cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      animation: cardEnter .4s ease both;
+    }
+    .site-card:hover { transform: translateY(-5px); border-color: var(--accent); box-shadow: var(--shadow-glow); }
+    .site-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+
+    .site-status-pill {
+      font-size: 0.72rem; font-weight: 700; padding: 0.3rem 0.65rem; border-radius: 20px; text-transform: uppercase;
+      letter-spacing: 0.5px; transition: all .3s ease;
+    }
+    .status-NORMAL { background: rgba(34, 197, 94, 0.15); color: var(--status-normal); border: 1px solid var(--status-normal); }
+    .status-ADVERTENCIA { background: rgba(234, 179, 8, 0.15); color: var(--status-warning); border: 1px solid var(--status-warning); animation: pulseWarning 2.2s infinite; }
+    .status-CRÍTICO { background: rgba(239, 68, 68, 0.15); color: var(--status-danger); border: 1px solid var(--status-danger); animation: pulseCritical 1.6s infinite; }
+    .status-OFFLINE { background: rgba(100, 116, 139, 0.2); color: var(--status-offline); border: 1px solid var(--status-offline); }
+
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }
+    .card { background: var(--bg-secondary); border-radius: 14px; padding: 1.35rem; border: 1px solid var(--border-color); }
+    .card-header { display: flex; justify-content: space-between; color: var(--text-secondary); font-size: 0.9rem; font-weight: 600; }
+    .card-body { margin: 0.8rem 0; display: flex; align-items: baseline; gap: 0.25rem; }
+    .card-value { font-size: 2.2rem; font-weight: 700; transition: color .3s ease; }
+    .card-unit { color: var(--text-secondary); font-size: 1rem; }
+
+    /* ---------- Panel de Simulación ---------- */
+    .sim-panel {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.04), rgba(30, 41, 59, 0.5)); 
+      border: 1px dashed var(--accent);
+      padding: 1.5rem; border-radius: 14px; margin-bottom: 2rem;
+    }
+    .sim-tag { background: var(--accent); color: #0f172a; font-size: 0.7rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; }
+    .sim-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1.2rem 0; }
+    .sim-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    .sim-group label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; }
+    .sim-group input, .sim-group select {
+      background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary);
+      padding: 0.65rem; border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s ease;
+    }
+    .sim-group input:focus, .sim-group select:focus { border-color: var(--accent); }
+
+    /* ---------- Botones ---------- */
+    .btn { 
+      padding: 0.65rem 1.2rem; border: none; border-radius: 8px; cursor: pointer; 
+      font-weight: 600; font-size: 0.88rem; transition: all .2s ease; 
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    }
+    .btn:hover { transform: translateY(-1px); opacity: 0.92; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--accent); color: #0f172a; font-weight: 700; }
+    .btn-secondary { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); }
+    .btn-danger { background: var(--status-danger); color: white; }
+    .btn-flex { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+    /* ---------- Tablas Responsivas ---------- */
+    .table-container { overflow-x: auto; background: var(--bg-secondary); border-radius: 14px; border: 1px solid var(--border-color); }
+    .data-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 600px; }
+    .data-table th, .data-table td { padding: 1rem 1.2rem; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+    .data-table th { background: var(--bg-card); color: var(--text-secondary); font-weight: 600; }
+    .data-table tbody tr { transition: background-color 0.2s ease; }
+    .data-table tbody tr:hover { background-color: rgba(255,255,255,0.02); }
+
+    /* Badges */
+    .badge-sim { background: #eab308; color: #000; font-size: 0.68rem; padding: 3px 7px; border-radius: 4px; font-weight: 700; }
+    .badge-real { background: #0284c7; color: white; font-size: 0.68rem; padding: 3px 7px; border-radius: 4px; font-weight: 700; }
+
+    /* ---------- Modal & Toasts ---------- */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.75); display: none; justify-content: center; align-items: center; z-index: 1000;
+      padding: 1rem; backdrop-filter: blur(4px);
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-content {
+      background: var(--bg-secondary); padding: 2rem; border-radius: 16px; border: 1px solid var(--border-color);
+      width: 100%; max-width: 500px; animation: modalPop .25s ease-out;
+    }
+
+    /* Modal estilo Especial Guía Chat ID */
+    .chat-id-guide-modal {
+      border: 1.5px solid var(--accent);
+      animation: modalPop .3s cubic-bezier(0.34, 1.56, 0.64, 1), glowPulse 3s infinite ease-in-out;
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+      max-width: 540px;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.1rem; }
+    .form-group label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; }
+    .form-group input { 
+      background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); 
+      padding: 0.65rem; border-radius: 8px; transition: border-color .2s ease; outline: none;
+    }
+    .form-group input:focus { border-color: var(--accent); }
+
+    .toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 2000; }
+    .toast {
+      display: flex; align-items: center; gap: 12px; background: var(--bg-secondary); border: 1px solid var(--border-color);
+      border-left: 4px solid var(--accent); padding: 0.9rem 1.2rem; border-radius: 10px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.4); min-width: 280px; max-width: 360px; font-size: 0.88rem;
+      animation: toastIn .3s ease-out;
+    }
+    .toast.hide { animation: toastOut .3s ease forwards; }
+    .toast-success { border-left-color: var(--status-normal); }
+    .toast-error { border-left-color: var(--status-danger); }
+    .toast-warning { border-left-color: var(--status-warning); }
+    .toast-success i { color: var(--status-normal); }
+    .toast-error i { color: var(--status-danger); }
+    .toast-warning i { color: var(--status-warning); }
+    .toast-info i { color: var(--accent); }
+
+    /* ---------- Guía Telegram (Chatbot Paso a Paso) ---------- */
+    .chatbot-step-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-start;
+      transition: transform 0.2s ease;
+    }
+    .chatbot-step-card:hover { transform: translateX(3px); }
+    .step-number {
+      background: var(--accent);
+      color: #0f172a;
+      font-weight: 800;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 1.1rem;
+    }
+    .step-content { flex: 1; }
+    .step-title { font-weight: 700; font-size: 1rem; margin-bottom: 0.3rem; color: var(--text-primary); }
+    .step-desc { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5; }
+
+    @media (max-width: 900px) {
+      .sidebar {
+        position: fixed;
+        top: 0; bottom: 0; left: 0;
+        transform: translateX(-100%);
+        box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .mobile-header { display: flex; }
+      .mobile-overlay.active { display: block; }
+      .main-content { padding: 1.25rem; }
+      .topbar { flex-direction: column; align-items: flex-start; }
+      .topbar select { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Encabezado Móvil -->
+  <div class="mobile-header">
+    <div class="brand" style="margin-bottom: 0; padding: 0;">
+      <i class="fa-solid fa-shield-halved brand-icon" style="font-size: 1.5rem;"></i>
+      <div class="brand-text-group">
+        <span class="brand-title" style="font-size: 1.1rem;">SensoriX</span>
+        <span class="brand-subtitle" style="font-size: 0.5rem; letter-spacing: 2px;">SIMULATION</span>
+      </div>
+    </div>
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()"><i class="fa-solid fa-bars"></i></button>
+  </div>
+
+  <div class="mobile-overlay" id="mobile-overlay" onclick="toggleMobileMenu()"></div>
+
+  <div class="app-container">
+    <!-- Sidebar / Menú Lateral -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <i class="fa-solid fa-shield-halved brand-icon"></i>
+        <div class="brand-text-group">
+          <span class="brand-title">SensoriX</span>
+          <span class="brand-subtitle">SIMULATION</span>
+        </div>
+      </div>
+      <nav class="nav-menu">
+        <a class="nav-item active" onclick="switchNav('dash-general')"><i class="fa-solid fa-border-all"></i> Dashboard General</a>
+        <a class="nav-item" onclick="switchNav('dash-detail')"><i class="fa-solid fa-server"></i> Detalle de SITE</a>
+        <a class="nav-item" onclick="switchNav('section-sites')"><i class="fa-solid fa-list-check"></i> Gestión de SITEs</a>
+        <a class="nav-item" onclick="switchNav('section-settings')"><i class="fa-solid fa-sliders"></i> Configuración Límites</a>
+        <a class="nav-item" onclick="switchNav('section-alerts')"><i class="fa-solid fa-bell"></i> Historial de Alertas</a>
+        <a class="nav-item" onclick="switchNav('section-telegram')"><i class="fa-solid fa-paper-plane"></i> Notificaciones Telegram</a>
+      </nav>
+    </aside>
+
+    <!-- ÁREA PRINCIPAL -->
+    <main class="main-content">
+
+      <!-- BANNER SOFISTICADO DE PRESENTACIÓN SENSORIX -->
+      <div class="sensorix-hero-banner">
+        <div class="sensorix-particles">
+          <div class="particle" style="top:20%; left:15%; animation-delay: 0s;"></div>
+          <div class="particle" style="top:60%; left:45%; animation-delay: 1.2s;"></div>
+          <div class="particle" style="top:30%; left:80%; animation-delay: 2.5s;"></div>
+        </div>
+        <div class="sensorix-hero-title-box">
+          <i class="fa-solid fa-shield-halved sensorix-hero-icon"></i>
+          <div>
+            <div class="sensorix-hero-badge">
+              <span class="pulse-dot"></span> SISTEMA ACTIVO EN TIEMPO REAL
+            </div>
+            <h2 style="font-size: 1.5rem; font-weight: 800; letter-spacing: -0.3px; color: var(--text-primary);">SensoriX Multi-SITE Platform</h2>
+            <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 2px;">Plataforma de simulación y monitoreo crítico de microclimas para centros de datos.</p>
+          </div>
+        </div>
+        <div style="z-index: 2;">
+          <select id="site-selector" onchange="onSelectSiteChange()" style="background: rgba(15, 23, 42, 0.8); color: var(--text-primary); border: 1px solid var(--accent); padding: 0.65rem 1rem; border-radius: 10px; outline: none; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <option value="">-- Seleccionar SITE --</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="topbar">
+        <div>
+          <h1 id="view-title" style="font-size: 1.6rem; font-weight: 700;">Monitoreo de Infraestructura</h1>
+          <p id="view-subtitle" style="color: var(--text-secondary); font-size: 0.9rem;">Gestión centralizada de salas de servidores</p>
+        </div>
+      </div>
+
+      <!-- 1. DASHBOARD GENERAL -->
+      <section id="dash-general" class="content-section active">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.8rem;">
+          <h3 id="sites-count-header">Cargando SITEs...</h3>
+          <button class="btn btn-primary" onclick="openCreateSiteModal()"><i class="fa-solid fa-plus"></i> Añadir SITE</button>
+        </div>
+        <div class="sites-grid" id="sites-overview-grid"></div>
+      </section>
+
+      <!-- 2. DETALLE INDIVIDUAL DE SITE -->
+      <section id="dash-detail" class="content-section">
+        <div class="card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, #1e293b, #0f172a); border-color: var(--accent);">
+          <div class="card-header">
+            <span><i class="fa-solid fa-cloud-sun"></i> CLIMA EXTERIOR REGIONAL (OPEN-METEO)</span>
+            <span id="weather-location-name" style="color: var(--accent); font-weight: bold;">Cargando...</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-top: 1rem;">
+            <div>
+              <small style="color: var(--text-secondary);">Temp. Exterior</small>
+              <div style="font-size: 1.6rem; font-weight: 700;" id="weather-temp">-- °C</div>
+            </div>
+            <div>
+              <small style="color: var(--text-secondary);">Sensación Térmica</small>
+              <div style="font-size: 1.6rem; font-weight: 700;" id="weather-feels">-- °C</div>
+            </div>
+            <div>
+              <small style="color: var(--text-secondary);">Condiciones</small>
+              <div style="font-size: 1rem; font-weight: 600; margin-top: 0.3rem;" id="weather-condition">--</div>
+            </div>
+            <div>
+              <small style="color: var(--text-secondary);">Última Act.</small>
+              <div style="font-size: 0.85rem; margin-top: 0.3rem;" id="weather-updated">--:--</div>
+            </div>
+          </div>
+          <div style="margin-top: 0.8rem; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <span><i class="fa-solid fa-circle-info"></i> Datos meteorológicos independientes del microclima del servidor.</span>
+            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" onclick="useDeviceGeoLocation()">Usar Ubicación Navegador</button>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); padding: 0.9rem 1.2rem; border-radius: 10px; margin-bottom: 1.5rem; border: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <span>Estado Dispositivo: </span>
+            <span id="esp32-connection-status" class="site-status-pill status-NORMAL">NORMAL</span>
+          </div>
+          <small id="esp32-last-comm" style="color: var(--text-secondary);">Última comunicación: --</small>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="card">
+            <div class="card-header"><span>Temp. SITE (Sensor)</span><i class="fa-solid fa-temperature-half"></i></div>
+            <div class="card-body">
+              <span class="card-value" id="site-val-temp">--</span><span class="card-unit">°C</span>
+            </div>
+            <small id="site-source-temp" style="color: var(--text-secondary); font-size: 0.75rem;">Fuente: --</small>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span>Humedad Relativa</span><i class="fa-solid fa-droplet"></i></div>
+            <div class="card-body">
+              <span class="card-value" id="site-val-hum">--</span><span class="card-unit">%</span>
+            </div>
+            <small id="site-source-hum" style="color: var(--text-secondary); font-size: 0.75rem;">Fuente: --</small>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span>Detección de Agua</span><i class="fa-solid fa-water"></i></div>
+            <div class="card-body" style="margin: 1.2rem 0;">
+              <span style="font-size: 1.15rem; font-weight: 700;" id="site-val-water">--</span>
+            </div>
+            <small id="site-source-water" style="color: var(--text-secondary); font-size: 0.75rem;">Fuente: --</small>
+          </div>
+        </div>
+
+        <!-- MODO SIMULACIÓN -->
+        <div class="sim-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3><i class="fa-solid fa-flask"></i> Modo Simulación de Sensores <span class="sim-tag">SIMULACIÓN</span></h3>
+          </div>
+          <div class="sim-controls">
+            <div class="sim-group">
+              <label for="sim-input-temp">Temperatura (°C):</label>
+              <input type="number" id="sim-input-temp" step="0.1" value="24.0">
+            </div>
+            <div class="sim-group">
+              <label for="sim-input-hum">Humedad (%):</label>
+              <input type="number" id="sim-input-hum" step="0.1" value="50.0">
+            </div>
+            <div class="sim-group">
+              <label for="sim-input-water">Fuga de Agua:</label>
+              <select id="sim-input-water">
+                <option value="false">No (Seco)</option>
+                <option value="true">Sí (Agua Detectada)</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-flex">
+            <button class="btn btn-primary" onclick="applyCustomSimulation()"><i class="fa-solid fa-play"></i> Aplicar Simulación</button>
+            <button class="btn btn-secondary" onclick="presetSimulation('normal')">Simular Normal</button>
+            <button class="btn btn-secondary" onclick="presetSimulation('temp_crit')">Temp. Crítica (38°C)</button>
+            <button class="btn btn-secondary" onclick="presetSimulation('hum_crit')">Humedad Crítica (75%)</button>
+            <button class="btn btn-danger" onclick="presetSimulation('water_crit')">Fuga de Agua</button>
+            <button class="btn btn-secondary" onclick="resetSimulation()"><i class="fa-solid fa-rotate-left"></i> Restablecer</button>
+          </div>
+        </div>
+
+        <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 14px; border: 1px solid var(--border-color);">
+          <h3>Historial Reciente de Sensores</h3>
+          <canvas id="detailChart" style="max-height: 280px; margin-top: 1rem;"></canvas>
+        </div>
+      </section>
+
+      <!-- 3. GESTIÓN DE SITES -->
+      <section id="section-sites" class="content-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.8rem;">
+          <h3>Dispositivos Registrados</h3>
+          <button class="btn btn-primary" onclick="openCreateSiteModal()"><i class="fa-solid fa-plus"></i> Registrar Nuevo SITE</button>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>No de Segmento</th>
+                <th>Nombre</th>
+                <th>Ciudad</th>
+                <th>Coordenadas</th>
+                <th>Telegram</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="sites-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 4. CONFIGURACIÓN UMBRALES -->
+      <section id="section-settings" class="content-section">
+        <div class="card" style="max-width: 650px;">
+          <h3>Configuración de Umbrales: <span id="settings-site-name" style="color: var(--accent);">--</span></h3>
+          <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">Afecta las alertas tanto para el sensor físico como para simulación.</p>
+          <form onsubmit="saveSiteThresholds(event)">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <div class="form-group">
+                <label>Temp. Mínima (°C):</label>
+                <input type="number" id="limit-temp-min" step="0.1" required>
+              </div>
+              <div class="form-group">
+                <label>Temp. Máxima (°C):</label>
+                <input type="number" id="limit-temp-max" step="0.1" required>
+              </div>
+              <div class="form-group">
+                <label>Humedad Mínima (%):</label>
+                <input type="number" id="limit-hum-min" step="0.1" required>
+              </div>
+              <div class="form-group">
+                <label>Humedad Máxima (%):</label>
+                <input type="number" id="limit-hum-max" step="0.1" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Telegram Chat ID de este SITE (opcional):</label>
+              <input type="text" id="settings-telegram-chatid" placeholder="Ej. 8073863464">
+            </div>
+            <div class="btn-flex" style="margin-top: 1rem;">
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Configuración</button>
+              <button type="button" class="btn btn-secondary" onclick="testTelegramNotification()"><i class="fa-solid fa-paper-plane"></i> Enviar Prueba</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- 5. HISTORIAL DE ALERTAS -->
+      <section id="section-alerts" class="content-section">
+        <h3>Historial Global de Alertas</h3>
+        <div class="table-container" style="margin-top: 1rem;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Fecha/Hora</th>
+                <th>No de Segmento</th>
+                <th>Tipo</th>
+                <th>Mensaje</th>
+                <th>Valor</th>
+              </tr>
+            </thead>
+            <tbody id="alerts-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 6. CONFIGURACIÓN Y GUÍA DE CHATBOT TELEGRAM -->
+      <section id="section-telegram" class="content-section">
+        <div style="max-width: 800px;">
+          <h3 style="margin-bottom: 0.5rem;"><i class="fa-solid fa-robot" style="color: var(--accent);"></i> Guía Fácil para Conectar tu Chatbot de Alertas</h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">Sigue estos 3 sencillos pasos para recibir alertas instantáneas directamente en tu celular o grupo de trabajo.</p>
+
+          <div class="chatbot-step-card">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <div class="step-title">Crea tu Bot en Telegram</div>
+              <div class="step-desc">
+                Abre Telegram en tu celular o PC, busca el usuario oficial <strong>@BotFather</strong> y envíale el comando <code>/newbot</code>. 
+                Elige un nombre para tu bot y copia la clave token que te entregará (ejemplo: <code>123456789:ABCdef...</code>).
+              </div>
+            </div>
+          </div>
+
+          <div class="chatbot-step-card">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <div class="step-title">Guarda el Token y Activa el Bot</div>
+              <div class="step-desc">
+                Pega la clave token en el campo de abajo y presiona <strong>Guardar Token</strong>.<br>
+                <em>¡Paso muy importante!</em> Entra a tu nuevo Bot en Telegram y presiona <strong>Iniciar / Start</strong> (o envíale cualquier mensaje) para autorizarlo a escribirte.
+              </div>
+            </div>
+          </div>
+
+          <div class="chatbot-step-card">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <div class="step-title">Vincula tu Chat ID a cada SITE</div>
+              <div class="step-desc">
+                Presiona el botón <strong>Detectar Chats Disponibles</strong> de abajo. La aplicación identificará tu usuario. Copia el <strong>Chat ID</strong> que aparezca y asígnalo en la pestaña <em>Configuración Límites</em> del SITE que desees.
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 1.5rem;">
+            <div class="form-group">
+              <label>Token Global del Bot de Telegram:</label>
+              <input type="text" id="telegram-bot-token-input" placeholder="Pega tu token aquí (Ej. 123456789:AA...)">
+            </div>
+            <div class="btn-flex">
+              <button class="btn btn-primary" onclick="saveGlobalBotToken()"><i class="fa-solid fa-floppy-disk"></i> Guardar Token</button>
+              <button class="btn btn-secondary" onclick="detectTelegramChats()"><i class="fa-solid fa-magnifying-glass"></i> Detectar Chats Disponibles</button>
+            </div>
+            <div id="telegram-chats-list" style="margin-top: 1.5rem;"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL CREAR SITE -->
+  <div class="modal-overlay" id="modal-site">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 1rem;"><i class="fa-solid fa-plus"></i> Registrar nuevo SITE</h3>
+      <form id="form-create-site" onsubmit="handleCreateSiteSubmit(event)">
+        <div class="form-group">
+          <label>No de Segmento (ej. SITE-003):</label>
+          <input type="text" id="create-id" required placeholder="SITE-003">
+        </div>
+        <div class="form-group">
+          <label>Nombre del SITE:</label>
+          <input type="text" id="create-name" required placeholder="Sala A - Servidores">
+        </div>
+        <div class="form-group">
+          <label>Ciudad:</label>
+          <input type="text" id="create-city" required placeholder="Guanajuato">
+        </div>
+        <div class="form-group">
+          <label>Latitud:</label>
+          <input type="number" step="any" id="create-lat" required value="20.6767">
+        </div>
+        <div class="form-group">
+          <label>Longitud:</label>
+          <input type="number" step="any" id="create-lon" required value="-101.3560">
+        </div>
+        <div class="form-group">
+          <label>Telegram Chat ID (opcional):</label>
+          <input type="text" id="create-telegram-id" placeholder="Ej. 8073863464">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeCreateSiteModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear SITE</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL ANIMADO GUÍA CHAT ID TELEGRAM -->
+  <div class="modal-overlay" id="modal-chatid-guide">
+    <div class="modal-content chat-id-guide-modal">
+      <div style="text-align: center; margin-bottom: 1.2rem;">
+        <i class="fa-solid fa-paper-plane" style="font-size: 2.8rem; color: var(--accent); animation: floatIcon 3s infinite ease-in-out;"></i>
+        <h3 style="font-size: 1.35rem; margin-top: 0.6rem; color: var(--text-primary);">¡SITE Creado con Éxito! 🎉</h3>
+        <p style="color: var(--accent); font-size: 0.9rem; font-weight: 600; margin-top: 0.2rem;">¿Dónde y cómo obtener tu Chat ID de Telegram?</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1.5rem;">
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); padding: 0.8rem; border-radius: 10px; display: flex; gap: 0.8rem; align-items: center;">
+          <div style="background: var(--accent); color: #0f172a; width: 28px; height: 28px; border-radius: 50%; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">1</div>
+          <div style="font-size: 0.85rem; color: var(--text-secondary);">
+            Abre Telegram en tu teléfono o computadora y busca el usuario oficial <strong style="color: var(--text-primary);">@BotFather</strong>.
+          </div>
+        </div>
+
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); padding: 0.8rem; border-radius: 10px; display: flex; gap: 0.8rem; align-items: center;">
+          <div style="background: var(--accent); color: #0f172a; width: 28px; height: 28px; border-radius: 50%; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">2</div>
+          <div style="font-size: 0.85rem; color: var(--text-secondary);">
+            Escríbele <code style="background: var(--bg-card); padding: 2px 5px; border-radius: 4px; color: var(--accent);">/newbot</code>, asigna un nombre y te entregará tu <strong style="color: var(--text-primary);">Bot Token</strong>. Guarda el Token en la pestaña <em>"Notificaciones Telegram"</em>.
+          </div>
+        </div>
+
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); padding: 0.8rem; border-radius: 10px; display: flex; gap: 0.8rem; align-items: center;">
+          <div style="background: var(--accent); color: #0f172a; width: 28px; height: 28px; border-radius: 50%; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">3</div>
+          <div style="font-size: 0.85rem; color: var(--text-secondary);">
+            Inicia conversación con tu Bot, envía cualquier mensaje y luego usa la herramienta <strong style="color: var(--text-primary);">"Detectar Chats Disponibles"</strong> para copiar tu <strong>Chat ID</strong> único.
+          </div>
+        </div>
+      </div>
+
+      <div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid var(--accent); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+        <i class="fa-solid fa-circle-info" style="color: var(--accent);"></i> Puedes vincular un Chat ID diferente para cada SITE en el menú <strong>Configuración Límites</strong>.
+      </div>
+
+      <div style="display: flex; gap: 0.6rem; justify-content: flex-end; flex-wrap: wrap;">
+        <button class="btn btn-secondary" onclick="closeChatIdGuideModal()"><i class="fa-solid fa-xmark"></i> Entendido</button>
+        <button class="btn btn-primary" onclick="goToTelegramConfig()"><i class="fa-solid fa-sliders"></i> Ir a Configurar Telegram</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIRMACIÓN -->
+  <div class="modal-overlay" id="modal-confirm">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+      <i class="fa-solid fa-triangle-exclamation" style="font-size: 2.2rem; color: var(--status-warning); margin-bottom: 1rem;"></i>
+      <p id="confirm-message" style="margin-bottom: 1.5rem; color: var(--text-primary); font-size: 0.95rem;"></p>
+      <div style="display: flex; justify-content: center; gap: 0.8rem;">
+        <button class="btn btn-secondary" id="confirm-no-btn">Cancelar</button>
+        <button class="btn btn-danger" id="confirm-yes-btn">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOASTS -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    /* --- MENÚ RESPONSIVO MÓVIL --- */
+    function toggleMobileMenu() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('mobile-overlay');
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('active');
+    }
+
+    /* --- TOASTS VISUALES --- */
+    function showToast(message, type = 'info') {
+      const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 320);
+      }, 3200);
+    }
+
+    /* --- CONFIRMACIÓN PERSONALIZADA --- */
+    function showConfirm(message, onConfirm) {
+      document.getElementById('confirm-message').innerText = message;
+      const overlay = document.getElementById('modal-confirm');
+      overlay.classList.add('active');
+      const yesBtn = document.getElementById('confirm-yes-btn');
+      const noBtn = document.getElementById('confirm-no-btn');
+      const cleanup = () => { overlay.classList.remove('active'); yesBtn.onclick = null; noBtn.onclick = null; };
+      yesBtn.onclick = async () => { cleanup(); await onConfirm(); };
+      noBtn.onclick = cleanup;
+    }
+
+    /* --- ANIMACIÓN NUMÉRICA --- */
+    function animateNumber(el, target, decimals = 1, duration = 600) {
+      if (typeof target !== 'number' || isNaN(target)) { el.innerText = '--'; return; }
+      const hasPrev = el.dataset.rawValue !== undefined;
+      const start = hasPrev ? parseFloat(el.dataset.rawValue) : 0;
+      const startTime = performance.now();
+      function tick(now) {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = start + (target - start) * eased;
+        el.innerText = current.toFixed(decimals);
+        if (progress < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          el.innerText = target.toFixed(decimals);
+          el.dataset.rawValue = String(target);
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    /* --- TELEGRAM LOGIC --- */
+    function getBotToken() { return localStorage.getItem('sg_telegram_token') || ''; }
+
+    function saveGlobalBotToken() {
+      const val = document.getElementById('telegram-bot-token-input').value.trim();
+      if (!val) return showToast('Ingresa un token válido antes de guardar', 'warning');
+      localStorage.setItem('sg_telegram_token', val);
+      showToast('Token del bot guardado correctamente', 'success');
+    }
+
+    async function detectTelegramChats() {
+      const token = document.getElementById('telegram-bot-token-input').value.trim() || getBotToken();
+      if (!token) return showToast('Ingresa y guarda un token primero', 'warning');
+      const listEl = document.getElementById('telegram-chats-list');
+      listEl.innerHTML = `<div style="color: var(--text-secondary); font-size: 0.9rem;"><i class="fa-solid fa-spinner fa-spin"></i> Buscando chats activos...</div>`;
+      
+      try {
+        const res = await window.fetch(`https://api.telegram.org/bot${token}/getUpdates`);
+        const json = await res.json();
+        if (!json.ok) {
+          listEl.innerHTML = '';
+          return showToast('Token inválido o error al consultar Telegram', 'error');
+        }
+        const seen = new Map();
+        (json.result || []).forEach(u => {
+          const chat = (u.message && u.message.chat) || (u.channel_post && u.channel_post.chat);
+          if (chat) seen.set(chat.id, chat);
+        });
+        if (seen.size === 0) {
+          listEl.innerHTML = `<p style="color: var(--status-warning); font-size: 0.88rem; background: rgba(234, 179, 8, 0.1); padding: 0.8rem; border-radius: 8px;"><i class="fa-solid fa-triangle-exclamation"></i> No se detectaron chats. Asegúrate de enviarle un mensaje a tu bot en Telegram y vuelve a hacer clic aquí.</p>`;
+          return;
+        }
+        listEl.innerHTML = '';
+        seen.forEach(chat => {
+          const label = chat.title || [chat.first_name, chat.last_name].filter(Boolean).join(' ') || chat.username || 'Sin nombre';
+          const div = document.createElement('div');
+          div.className = 'chatbot-step-card';
+          div.style.marginBottom = '0.6rem';
+          div.innerHTML = `
+            <div style="flex:1;">
+              <strong>${label}</strong><br>
+              <small style="color: var(--text-secondary);">Chat ID: ${chat.id}</small>
+            </div>
+            <button class="btn btn-secondary" onclick="copyChatId('${chat.id}')"><i class="fa-solid fa-copy"></i> Copiar ID</button>
+          `;
+          listEl.appendChild(div);
+        });
+      } catch (e) {
+        listEl.innerHTML = '';
+        showToast('No se pudo conectar con Telegram', 'error');
+      }
+    }
+
+    function copyChatId(id) {
+      navigator.clipboard.writeText(id)
+        .then(() => showToast(`Chat ID ${id} copiado`, 'success'))
+        .catch(() => showToast('Error al copiar ID', 'error'));
+    }
+
+    async function enviarTelegram(mensaje, chatId) {
+      const token = getBotToken();
+      if (!token || !chatId) return;
+      const url = `https://api.telegram.org/bot${token}/sendMessage`;
+      try {
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text: mensaje })
+        });
+      } catch (error) {
+        console.error('Error enviando a Telegram:', error);
+      }
+    }
+
+    async function testTelegramNotification() {
+      if (!currentDeviceId) return showToast('Selecciona un SITE primero', 'warning');
+      const chatId = document.getElementById('settings-telegram-chatid').value.trim();
+      if (!chatId) return showToast('Ingresa un Chat ID antes de probar', 'warning');
+      if (!getBotToken()) return showToast('Configura el Bot Token primero', 'warning');
+      await enviarTelegram(`✅ Conexión exitosa — SensoriX Simulation está vinculado a este chat.`, chatId);
+      showToast('Notificación de prueba enviada', 'success');
+    }
+
+    /* --- EMULADOR DE BACKEND --- */
+    (function initEmulatedBackend() {
+      if (!localStorage.getItem('sg_devices')) {
+        const defaultDevices = [
+          { id: 'SITE-001', name: 'Cuarto de Servidores Principal', city: 'Irapuato', latitude: 20.6767, longitude: -101.3560, minTemp: 18, maxTemp: 27, minHumidity: 30, maxHumidity: 60, telegramChatId: '', lastComm: new Date().toISOString(), inAlert: false },
+          { id: 'SITE-002', name: 'Centro de Datos Respaldos', city: 'Salamanca', latitude: 20.5735, longitude: -101.1963, minTemp: 18, maxTemp: 30, minHumidity: 25, maxHumidity: 65, telegramChatId: '', lastComm: new Date().toISOString(), inAlert: false }
+        ];
+        localStorage.setItem('sg_devices', JSON.stringify(defaultDevices));
+      }
+      if (!localStorage.getItem('sg_readings')) {
+        const defaultReadings = [
+          { id: 1, deviceId: 'SITE-001', temperature: 22.5, humidity: 45.0, waterDetected: false, isSimulation: false, timestamp: new Date().toISOString() },
+          { id: 2, deviceId: 'SITE-002', temperature: 24.1, humidity: 50.2, waterDetected: false, isSimulation: false, timestamp: new Date().toISOString() }
+        ];
+        localStorage.setItem('sg_readings', JSON.stringify(defaultReadings));
+      }
+      if (!localStorage.getItem('sg_alerts')) {
+        localStorage.setItem('sg_alerts', JSON.stringify([]));
+      }
+
+      const originalFetch = window.fetch;
+      window.fetch = async function(resource, config = {}) {
+        const url = typeof resource === 'string' ? resource : resource.url;
+        if (!url.startsWith('/api')) return originalFetch(resource, config);
+
+        const method = (config.method || 'GET').toUpperCase();
+        const body = config.body ? JSON.parse(config.body) : {};
+
+        let devices = JSON.parse(localStorage.getItem('sg_devices') || '[]');
+        let readings = JSON.parse(localStorage.getItem('sg_readings') || '[]');
+        let alerts = JSON.parse(localStorage.getItem('sg_alerts') || '[]');
+
+        const makeRes = (data, status = 200) => new Response(JSON.stringify(data), {
+          status, headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (url === '/api/devices' && method === 'GET') return makeRes(devices);
+
+        if (url === '/api/devices' && method === 'POST') {
+          if (devices.find(d => d.id === body.id)) return makeRes({ error: 'El No de Segmento ya existe.' }, 400);
+          const newDev = { telegramChatId: '', ...body, lastComm: new Date().toISOString(), inAlert: false };
+          devices.push(newDev);
+          localStorage.setItem('sg_devices', JSON.stringify(devices));
+          return makeRes(newDev, 201);
+        }
+
+        if (url.match(/\/api\/devices\/[^\/]+$/) && method === 'GET') {
+          const id = url.split('/').pop();
+          const dev = devices.find(d => d.id === id);
+          return dev ? makeRes(dev) : makeRes({ error: 'No encontrado' }, 404);
+        }
+
+        if (url.match(/\/api\/devices\/[^\/]+\/thresholds$/) && method === 'PUT') {
+          const id = url.split('/')[3];
+          const index = devices.findIndex(d => d.id === id);
+          if (index !== -1) {
+            devices[index] = { ...devices[index], ...body };
+            localStorage.setItem('sg_devices', JSON.stringify(devices));
+            return makeRes({ message: 'Umbrales actualizados' });
+          }
+          return makeRes({ error: 'No encontrado' }, 404);
+        }
+
+        if (url.match(/\/api\/devices\/[^\/]+$/) && method === 'DELETE') {
+          const id = url.split('/').pop();
+          devices = devices.filter(d => d.id !== id);
+          readings = readings.filter(r => r.deviceId !== id);
+          alerts = alerts.filter(a => a.deviceId !== id);
+          localStorage.setItem('sg_devices', JSON.stringify(devices));
+          localStorage.setItem('sg_readings', JSON.stringify(readings));
+          localStorage.setItem('sg_alerts', JSON.stringify(alerts));
+          return makeRes({ message: 'Eliminado' });
+        }
+
+        if (url.match(/\/api\/devices\/[^\/]+\/latest$/) && method === 'GET') {
+          const id = url.split('/')[3];
+          const dev = devices.find(d => d.id === id);
+          if (!dev) return makeRes({ error: 'No encontrado' }, 404);
+
+          const devReadings = readings.filter(r => r.deviceId === id);
+          const latest = devReadings.length ? devReadings[devReadings.length - 1] : null;
+
+          let status = 'OFFLINE';
+          let lastCommSeconds = null;
+          if (dev.lastComm) {
+            lastCommSeconds = Math.floor((new Date() - new Date(dev.lastComm)) / 1000);
+            if (lastCommSeconds <= 300) {
+              if (!latest) status = 'NORMAL';
+              else if (latest.waterDetected || latest.temperature > dev.maxTemp || latest.humidity > dev.maxHumidity) status = 'CRÍTICO';
+              else if (latest.temperature < dev.minTemp || latest.humidity < dev.minHumidity) status = 'ADVERTENCIA';
+              else status = 'NORMAL';
+            }
+          }
+          return makeRes({ device: dev, reading: latest, status, lastCommSeconds });
+        }
+
+        if (url.match(/\/api\/devices\/[^\/]+\/history$/) && method === 'GET') {
+          const id = url.split('/')[3];
+          const history = readings.filter(r => r.deviceId === id).slice(-20);
+          return makeRes(history);
+        }
+
+        if (url === '/api/sensors' && method === 'POST') {
+          const devIndex = devices.findIndex(d => d.id === body.deviceId);
+          if (devIndex === -1) return makeRes({ error: 'Dispositivo no registrado' }, 404);
+
+          const nowIso = new Date().toISOString();
+          devices[devIndex].lastComm = nowIso;
+
+          const newReading = {
+            id: Date.now(),
+            deviceId: body.deviceId,
+            temperature: parseFloat(body.temperature),
+            humidity: parseFloat(body.humidity),
+            waterDetected: Boolean(body.waterDetected),
+            isSimulation: Boolean(body.isSimulation),
+            timestamp: nowIso
+          };
+          readings.push(newReading);
+          localStorage.setItem('sg_readings', JSON.stringify(readings));
+
+          const dev = devices[devIndex];
+          let alertTriggered = false;
+          let alertMsgText = "";
+
+          // Chequeo de Condiciones Fuera de Límites
+          if (newReading.waterDetected) {
+            alertMsgText = `🚨 ALERTA DE FUGA EN ${dev.id} (${dev.name})\n¡INUNDACIÓN DETECTADA! Agua presente en el sensor.`;
+            alerts.unshift({ id: Date.now(), deviceId: dev.id, type: 'FUGA DE AGUA', message: '¡INUNDACIÓN DETECTADA! Agua presente en el sensor.', value: 'SÍ', timestamp: nowIso });
+            alertTriggered = true;
+          } else if (newReading.temperature > dev.maxTemp) {
+            alertMsgText = `🔥 ALERTA DE TEMPERATURA EN ${dev.id} (${dev.name})\nTemperatura alta: ${newReading.temperature}°C excede límite (${dev.maxTemp}°C)`;
+            alerts.unshift({ id: Date.now(), deviceId: dev.id, type: 'TEMP ALTA', message: `Temperatura alta: ${newReading.temperature}°C excede límite (${dev.maxTemp}°C)`, value: `${newReading.temperature} °C`, timestamp: nowIso });
+            alertTriggered = true;
+          } else if (newReading.humidity > dev.maxHumidity) {
+            alertMsgText = `💧 ALERTA DE HUMEDAD EN ${dev.id} (${dev.name})\nHumedad alta: ${newReading.humidity}% excede límite (${dev.maxHumidity}%)`;
+            alerts.unshift({ id: Date.now(), deviceId: dev.id, type: 'HUMEDAD ALTA', message: `Humedad alta: ${newReading.humidity}% excede límite (${dev.maxHumidity}%)`, value: `${newReading.humidity} %`, timestamp: nowIso });
+            alertTriggered = true;
+          }
+
+          // Lógica de Notificación de Retorno a Límites Normales
+          if (alertTriggered) {
+            devices[devIndex].inAlert = true;
+          } else if (devices[devIndex].inAlert) {
+            devices[devIndex].inAlert = false;
+            const recoveryMsg = `✅ NIVELES NORMALIZADOS EN ${dev.id} (${dev.name})\nLos sensores han regresado dentro de los límites seguros:\n• Temp: ${newReading.temperature}°C\n• Humedad: ${newReading.humidity}%\n• Agua: Seco`;
+            alerts.unshift({ 
+              id: Date.now(), 
+              deviceId: dev.id, 
+              type: 'RESTABLECIDO', 
+              message: 'Los parámetros del sensor han retornado a los límites normales.', 
+              value: `${newReading.temperature}°C / ${newReading.humidity}%`, 
+              timestamp: nowIso 
+            });
+            enviarTelegram(recoveryMsg, dev.telegramChatId);
+          }
+
+          localStorage.setItem('sg_devices', JSON.stringify(devices));
+          localStorage.setItem('sg_alerts', JSON.stringify(alerts));
+
+          if (alertTriggered && alertMsgText) {
+            enviarTelegram(alertMsgText, dev.telegramChatId);
+          }
+
+          return makeRes({ success: true, readingId: newReading.id }, 201);
+        }
+
+        if (url === '/api/alerts' && method === 'GET') {
+          return makeRes(alerts.slice(0, 50));
+        }
+
+        return makeRes({ error: 'Endpoint no encontrado' }, 404);
+      };
+    })();
+
+    /* --- NAVEGACIÓN Y VISTAS --- */
+    const API_BASE = '/api';
+    let devices = [];
+    let currentDeviceId = null;
+    let chartInstance = null;
+    let cardElements = {};
+
+    async function apiFetch(url, options = {}) {
+      try {
+        const res = await fetch(url, options);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error en la petición');
+        return data;
+      } catch (err) {
+        showToast(`Error: ${err.message}`, 'error');
+        throw err;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const savedToken = getBotToken();
+      if (savedToken) document.getElementById('telegram-bot-token-input').value = savedToken;
+
+      await loadInitialData();
+      setInterval(pollData, 5000);
+    });
+
+    async function loadInitialData() {
+      await fetchDevices();
+      if (devices.length > 0 && !currentDeviceId) currentDeviceId = devices[0].id;
+      populateSiteSelector();
+      renderGeneralDashboard();
+    }
+
+    function switchNav(sectionId) {
+      document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      document.getElementById(sectionId).classList.add('active');
+      
+      const activeNav = document.querySelector(`.nav-item[onclick="switchNav('${sectionId}')"]`);
+      if (activeNav) activeNav.classList.add('active');
+
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar.classList.contains('open')) toggleMobileMenu();
+
+      if (sectionId === 'dash-general') renderGeneralDashboard();
+      if (sectionId === 'dash-detail') renderDetailDashboard();
+      if (sectionId === 'section-sites') renderSitesTable();
+      if (sectionId === 'section-settings') loadSiteSettings();
+      if (sectionId === 'section-alerts') loadAlertsTable();
+    }
+
+    async function fetchDevices() {
+      try { devices = await apiFetch(`${API_BASE}/devices`); } 
+      catch (e) { console.error('Error al cargar dispositivos:', e); }
+    }
+
+    function populateSiteSelector() {
+      const sel = document.getElementById('site-selector');
+      if (devices.length === 0) {
+        sel.innerHTML = `<option value="">-- Sin SITEs registrados --</option>`;
+        return;
+      }
+      sel.innerHTML = devices.map(d => `<option value="${d.id}">${d.name} (${d.city})</option>`).join('');
+      if (currentDeviceId) sel.value = currentDeviceId;
+    }
+
+    function onSelectSiteChange() {
+      currentDeviceId = document.getElementById('site-selector').value;
+      
+      if (document.getElementById('section-settings').classList.contains('active')) {
+        loadSiteSettings();
+      } else if (document.getElementById('dash-detail').classList.contains('active')) {
+        renderDetailDashboard();
+      }
+    }
+
+    /* --- RENDERS DE SECCIONES --- */
+    async function renderGeneralDashboard() {
+      await fetchDevices();
+      const grid = document.getElementById('sites-overview-grid');
+      document.getElementById('sites-count-header').innerText = devices.length ? `${devices.length} SITEs Monitoreados` : 'Sin SITEs registrados';
+
+      if (devices.length === 0) {
+        grid.innerHTML = `<p style="color: var(--text-secondary);">No existen SITEs registrados. Haz clic en "Añadir SITE" para crear el primero.</p>`;
+        cardElements = {};
+        return;
+      }
+
+      Object.keys(cardElements).forEach(id => {
+        if (!devices.find(d => d.id === id)) {
+          cardElements[id].remove();
+          delete cardElements[id];
+        }
+      });
+      if (grid.querySelector('p')) grid.innerHTML = '';
+
+      for (const d of devices) {
+        let card = cardElements[d.id];
+        if (!card) {
+          card = document.createElement('div');
+          card.className = 'site-card';
+          card.onclick = () => selectAndGoToDetail(d.id);
+          card.innerHTML = `
+            <div class="site-card-header">
+              <strong>${d.name}</strong>
+              <span class="site-status-pill" id="card-status-${d.id}">--</span>
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.8rem;">
+              <i class="fa-solid fa-location-dot"></i> ${d.city} (${d.id})
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <div><span class="card-value" style="font-size: 1.3rem;" id="card-temp-${d.id}">--</span><span class="card-unit" style="font-size: 0.85rem;"> °C</span></div>
+              <div><span class="card-value" style="font-size: 1.3rem;" id="card-hum-${d.id}">--</span><span class="card-unit" style="font-size: 0.85rem;"> %</span></div>
+            </div>
+            <div id="card-water-alert-${d.id}"></div>
+            <div id="card-telegram-note-${d.id}"></div>
+          `;
+          grid.appendChild(card);
+          cardElements[d.id] = card;
+        }
+
+        let latest;
+        try { latest = await apiFetch(`${API_BASE}/devices/${d.id}/latest`); } catch (e) { continue; }
+
+        const status = latest.status || 'OFFLINE';
+        const statusEl = card.querySelector(`#card-status-${d.id}`);
+        statusEl.innerText = status;
+        statusEl.className = `site-status-pill status-${status}`;
+
+        const tempEl = card.querySelector(`#card-temp-${d.id}`);
+        const humEl = card.querySelector(`#card-hum-${d.id}`);
+        const waterEl = card.querySelector(`#card-water-alert-${d.id}`);
+
+        if (latest.reading) {
+          animateNumber(tempEl, latest.reading.temperature, 1);
+          animateNumber(humEl, latest.reading.humidity, 1);
+          waterEl.innerHTML = latest.reading.waterDetected
+            ? `<div style="margin-top:0.6rem;padding:0.4rem 0.6rem;background:rgba(239,68,68,0.15);border:1px solid var(--status-danger);border-radius:6px;color:var(--status-danger);font-size:0.8rem;font-weight:700;"><i class="fa-solid fa-droplet"></i> ¡Agua detectada!</div>`
+            : '';
+        } else {
+          tempEl.innerText = '--';
+          humEl.innerText = '--';
+          waterEl.innerHTML = '';
+        }
+
+        const telegramNoteEl = card.querySelector(`#card-telegram-note-${d.id}`);
+        telegramNoteEl.innerHTML = d.telegramChatId ? '' : `<div style="margin-top:0.5rem;font-size:0.7rem;color:var(--text-secondary);"><i class="fa-solid fa-bell-slash"></i> Sin Telegram</div>`;
+      }
+    }
+
+    function selectAndGoToDetail(id) {
+      currentDeviceId = id;
+      const sel = document.getElementById('site-selector');
+      if (sel) sel.value = id;
+      switchNav('dash-detail');
+    }
+
+    async function renderDetailDashboard() {
+      if (!currentDeviceId) return;
+
+      try {
+        const device = await apiFetch(`${API_BASE}/devices/${currentDeviceId}`);
+        const data = await apiFetch(`${API_BASE}/devices/${currentDeviceId}/latest`);
+
+        fetchWeather(device.latitude, device.longitude, device.city);
+
+        const connElem = document.getElementById('esp32-connection-status');
+        connElem.innerText = data.status;
+        connElem.className = `site-status-pill status-${data.status}`;
+        document.getElementById('esp32-last-comm').innerText = `Última comunicación: ${data.lastCommSeconds !== null ? 'Hace ' + data.lastCommSeconds + 's' : 'Sin comunicación'}`;
+
+        if (data.reading) {
+          animateNumber(document.getElementById('site-val-temp'), data.reading.temperature, 1);
+          animateNumber(document.getElementById('site-val-hum'), data.reading.humidity, 1);
+          document.getElementById('site-val-water').innerText = data.reading.waterDetected ? '¡AGUA DETECTADA!' : 'Seco / Normal';
+          document.getElementById('site-val-water').style.color = data.reading.waterDetected ? 'var(--status-danger)' : 'var(--text-primary)';
+
+          const tagClass = data.reading.isSimulation ? 'badge-sim' : 'badge-real';
+          const tagText = data.reading.isSimulation ? 'SIMULACIÓN' : 'SENSOR FÍSICO';
+          document.getElementById('site-source-temp').innerHTML = `Fuente: <span class="${tagClass}">${tagText}</span>`;
+          document.getElementById('site-source-hum').innerHTML = `Fuente: <span class="${tagClass}">${tagText}</span>`;
+          document.getElementById('site-source-water').innerHTML = `Fuente: <span class="${tagClass}">${tagText}</span>`;
+        } else {
+          document.getElementById('site-val-temp').innerText = '--';
+          document.getElementById('site-val-hum').innerText = '--';
+          document.getElementById('site-val-water').innerText = 'Sin lecturas';
+        }
+
+        renderDetailChart();
+      } catch (e) {
+        console.error("Error al renderizar vista de detalle:", e);
+      }
+    }
+
+    async function fetchWeather(lat, lon, cityName) {
+      try {
+        const res = await window.fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+        const json = await res.json();
+        const cw = json.current_weather;
+
+        document.getElementById('weather-location-name').innerText = cityName;
+        document.getElementById('weather-temp').innerText = `${cw.temperature} °C`;
+        document.getElementById('weather-feels').innerText = `${cw.temperature} °C`;
+        document.getElementById('weather-condition').innerText = `Viento: ${cw.windspeed} km/h`;
+        document.getElementById('weather-updated').innerText = new Date(cw.time).toLocaleTimeString();
+      } catch (e) {
+        console.error('Error al consultar Open-Meteo:', e);
+      }
+    }
+
+    function useDeviceGeoLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          fetchWeather(pos.coords.latitude, pos.coords.longitude, 'Ubicación Navegador');
+        }, () => showToast('Permiso de ubicación denegado.', 'warning'));
+      }
+    }
+
+    async function applyCustomSimulation() {
+      if (!currentDeviceId) return showToast('Selecciona un SITE primero', 'warning');
+      const tempVal = document.getElementById('sim-input-temp').value;
+      const humVal = document.getElementById('sim-input-hum').value;
+
+      if (tempVal === "" || humVal === "") return showToast('Ingresa valores válidos de Temperatura y Humedad', 'warning');
+
+      await apiFetch(`${API_BASE}/sensors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId: currentDeviceId,
+          temperature: parseFloat(tempVal),
+          humidity: parseFloat(humVal),
+          waterDetected: document.getElementById('sim-input-water').value === 'true',
+          isSimulation: true
+        })
+      });
+
+      renderDetailDashboard();
+    }
+
+    function presetSimulation(type) {
+      if (type === 'normal') {
+        document.getElementById('sim-input-temp').value = 22.0;
+        document.getElementById('sim-input-hum').value = 45.0;
+        document.getElementById('sim-input-water').value = 'false';
+      } else if (type === 'temp_crit') {
+        document.getElementById('sim-input-temp').value = 38.0;
+        document.getElementById('sim-input-hum').value = 50.0;
+        document.getElementById('sim-input-water').value = 'false';
+      } else if (type === 'hum_crit') {
+        document.getElementById('sim-input-temp').value = 24.0;
+        document.getElementById('sim-input-hum').value = 75.0;
+        document.getElementById('sim-input-water').value = 'false';
+      } else if (type === 'water_crit') {
+        document.getElementById('sim-input-water').value = 'true';
+      }
+      applyCustomSimulation();
+    }
+
+    function resetSimulation() { presetSimulation('normal'); }
+
+    async function renderDetailChart() {
+      if (!currentDeviceId) return;
+      try {
+        const history = await apiFetch(`${API_BASE}/devices/${currentDeviceId}/history`);
+        const labels = history.map(h => new Date(h.timestamp).toLocaleTimeString());
+        const temps = history.map(h => h.temperature);
+        const hums = history.map(h => h.humidity);
+
+        const ctx = document.getElementById('detailChart').getContext('2d');
+        if (chartInstance) chartInstance.destroy();
+
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              { label: 'Temperatura (°C)', data: temps, borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.12)', fill: true, tension: 0.35, pointRadius: 3 },
+              { label: 'Humedad (%)', data: hums, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.12)', fill: true, tension: 0.35, pointRadius: 3 }
+            ]
+          },
+          options: {
+            responsive: true,
+            animation: { duration: 600 },
+            plugins: { legend: { labels: { color: '#94a3b8' } } },
+            scales: {
+              y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+              x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+            }
+          }
+        });
+      } catch (e) { console.error("Error cargando gráfica:", e); }
+    }
+
+    async function renderSitesTable() {
+      await fetchDevices();
+      document.getElementById('sites-table-body').innerHTML = devices.map(d => `
+        <tr>
+          <td><strong>${d.id}</strong></td>
+          <td>${d.name}</td>
+          <td>${d.city}</td>
+          <td>${d.latitude}, ${d.longitude}</td>
+          <td>${d.telegramChatId ? '<i class="fa-solid fa-check" style="color: var(--status-normal);"></i> Configurado' : '<i class="fa-solid fa-ban" style="color: var(--text-secondary);"></i> Sin Vincular'}</td>
+          <td>
+            <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8rem;" onclick="deleteSite('${d.id}')">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openCreateSiteModal() { document.getElementById('modal-site').classList.add('active'); }
+    function closeCreateSiteModal() {
+      document.getElementById('modal-site').classList.remove('active');
+      document.getElementById('form-create-site').reset();
+    }
+
+    function openChatIdGuideModal() {
+      document.getElementById('modal-chatid-guide').classList.add('active');
+    }
+    function closeChatIdGuideModal() {
+      document.getElementById('modal-chatid-guide').classList.remove('active');
+    }
+    function goToTelegramConfig() {
+      closeChatIdGuideModal();
+      switchNav('section-telegram');
+    }
+
+    async function handleCreateSiteSubmit(event) {
+      event.preventDefault();
+      const id = document.getElementById('create-id').value.trim();
+      const name = document.getElementById('create-name').value.trim();
+      const city = document.getElementById('create-city').value.trim();
+      const lat = parseFloat(document.getElementById('create-lat').value);
+      const lon = parseFloat(document.getElementById('create-lon').value);
+      const telegramChatId = document.getElementById('create-telegram-id').value.trim();
+
+      try {
+        await apiFetch(`${API_BASE}/devices`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, name, city, latitude: lat, longitude: lon, minTemp: 18, maxTemp: 27, minHumidity: 30, maxHumidity: 60, telegramChatId })
+        });
+        closeCreateSiteModal();
+        currentDeviceId = id;
+        await fetchDevices();
+        populateSiteSelector();
+        renderGeneralDashboard();
+        showToast(`SITE "${name}" creado con éxito`, 'success');
+
+        setTimeout(() => {
+          openChatIdGuideModal();
+        }, 250);
+
+      } catch (e) {}
+    }
+
+    function deleteSite(id) {
+      showConfirm(`¿Deseas eliminar permanentemente el SITE ${id}?`, async () => {
+        try {
+          await apiFetch(`${API_BASE}/devices/${id}`, { method: 'DELETE' });
+          await fetchDevices();
+          if (currentDeviceId === id) currentDeviceId = devices.length > 0 ? devices[0].id : null;
+          populateSiteSelector();
+          renderSitesTable();
+          showToast('SITE eliminado con éxito', 'success');
+        } catch (e) {}
+      });
+    }
+
+    async function loadSiteSettings() {
+      if (!currentDeviceId) return;
+      try {
+        const dev = await apiFetch(`${API_BASE}/devices/${currentDeviceId}`);
+        document.getElementById('settings-site-name').innerText = `${dev.name} (${dev.id})`;
+        document.getElementById('limit-temp-min').value = dev.minTemp;
+        document.getElementById('limit-temp-max').value = dev.maxTemp;
+        document.getElementById('limit-hum-min').value = dev.minHumidity;
+        document.getElementById('limit-hum-max').value = dev.maxHumidity;
+        document.getElementById('settings-telegram-chatid').value = dev.telegramChatId || '';
+      } catch (e) {}
+    }
+
+    async function saveSiteThresholds(e) {
+      e.preventDefault();
+      if (!currentDeviceId) return;
+
+      try {
+        await apiFetch(`${API_BASE}/devices/${currentDeviceId}/thresholds`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            minTemp: parseFloat(document.getElementById('limit-temp-min').value),
+            maxTemp: parseFloat(document.getElementById('limit-temp-max').value),
+            minHumidity: parseFloat(document.getElementById('limit-hum-min').value),
+            maxHumidity: parseFloat(document.getElementById('limit-hum-max').value),
+            telegramChatId: document.getElementById('settings-telegram-chatid').value.trim()
+          })
+        });
+        showToast('Umbrales guardados correctamente', 'success');
+      } catch (e) {}
+    }
+
+    async function loadAlertsTable() {
+      try {
+        const alerts = await apiFetch(`${API_BASE}/alerts`);
+        document.getElementById('alerts-table-body').innerHTML = alerts.map(a => `
+          <tr>
+            <td>${new Date(a.timestamp).toLocaleString()}</td>
+            <td><strong>${a.deviceId}</strong></td>
+            <td><span class="site-status-pill ${a.type === 'RESTABLECIDO' ? 'status-NORMAL' : 'status-CRÍTICO'}">${a.type}</span></td>
+            <td>${a.message}</td>
+            <td>${a.value}</td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    function pollData() {
+      if (document.getElementById('dash-general').classList.contains('active')) renderGeneralDashboard();
+      if (document.getElementById('dash-detail').classList.contains('active')) renderDetailDashboard();
+    }
+  </script>
+</body>
+</html>
