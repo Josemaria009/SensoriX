@@ -29,6 +29,169 @@
     
     .app-container { display: flex; min-height: 100vh; position: relative; }
 
+    /* =========================================================
+       ---------- PANTALLA DE CARGA / LOADER SENSORIX ----------
+       ========================================================= */
+    #sensorix-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.8s;
+    }
+
+    #sensorix-loader.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .loader-bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: radial-gradient(circle at center, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 80%);
+      pointer-events: none;
+    }
+
+    .loader-content {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 2;
+    }
+
+    .loader-logo-wrapper {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .loader-pulse-ring {
+      position: absolute;
+      inset: -15px;
+      border-radius: 50%;
+      border: 1.5px solid var(--accent);
+      opacity: 0;
+      animation: loaderRingPulse 2.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+    .loader-pulse-ring:nth-child(2) {
+      animation-delay: 0.9s;
+    }
+
+    .loader-svg {
+      width: 100px;
+      height: 100px;
+      filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.6));
+    }
+
+    /* Animaciones Dibujo SVG Loader */
+    .loader-svg .shield-path {
+      stroke-dasharray: 300;
+      stroke-dashoffset: 300;
+      animation: loaderDrawShield 2s cubic-bezier(0.4, 0, 0.2, 1) forwards infinite;
+    }
+    .loader-svg .core-box {
+      animation: loaderCorePulse 1.5s ease-in-out infinite alternate;
+    }
+    .loader-svg .wave-path {
+      stroke-dasharray: 50;
+      stroke-dashoffset: 50;
+      animation: loaderDrawWave 1.8s ease-in-out infinite alternate;
+    }
+
+    .loader-brand {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .loader-title {
+      font-size: 2.2rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, #ffffff 30%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1;
+    }
+    .loader-subtitle {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 6px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-top: 6px;
+      opacity: 0.85;
+    }
+
+    /* Barra de Progreso Loader */
+    .loader-progress-box {
+      width: 260px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .loader-bar-bg {
+      width: 100%;
+      height: 4px;
+      background: rgba(56, 189, 248, 0.15);
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+    .loader-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #0284c7, var(--accent), #f8fafc);
+      box-shadow: 0 0 12px var(--accent);
+      border-radius: 10px;
+      animation: loaderFillProgress 2.2s ease-in-out forwards;
+    }
+    .loader-status-text {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-family: monospace;
+      letter-spacing: 0.5px;
+    }
+
+    /* Keyframes Loader */
+    @keyframes loaderDrawShield {
+      0% { stroke-dashoffset: 300; opacity: 0.2; }
+      50% { stroke-dashoffset: 0; opacity: 1; }
+      100% { stroke-dashoffset: 0; opacity: 1; }
+    }
+    @keyframes loaderCorePulse {
+      0% { transform: scale(0.85); opacity: 0.5; fill: var(--accent); }
+      100% { transform: scale(1.1); opacity: 1; fill: #ffffff; }
+    }
+    @keyframes loaderDrawWave {
+      0% { stroke-dashoffset: 50; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes loaderRingPulse {
+      0% { transform: scale(0.6); opacity: 0.8; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    @keyframes loaderFillProgress {
+      0% { width: 0%; }
+      30% { width: 40%; }
+      70% { width: 75%; }
+      100% { width: 100%; }
+    }
+
+
     /* ---------- Animaciones Fluidas & Sofisticadas ---------- */
     @keyframes fadeInUp {
       from { opacity: 0; transform: translateY(12px); }
@@ -445,6 +608,50 @@
   </style>
 </head>
 <body>
+
+  <!-- =========================================================
+       ---------- PANTALLA DE CARGA INTRO SENSORIX --------------
+       ========================================================= -->
+  <div id="sensorix-loader">
+    <div class="loader-bg-grid"></div>
+    <div class="loader-content">
+      <div class="loader-logo-wrapper">
+        <div class="loader-pulse-ring"></div>
+        <div class="loader-pulse-ring"></div>
+        
+        <svg class="loader-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="loaderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#38bdf8"/>
+              <stop offset="100%" stop-color="#0284c7"/>
+            </linearGradient>
+            <linearGradient id="loaderCore" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="100%" stop-color="#38bdf8"/>
+            </linearGradient>
+          </defs>
+          <path class="shield-path" d="M50 6 L90 23 V50 C90 74 72 90 50 96 C28 90 10 74 10 50 V23 L50 6 Z" fill="url(#loaderGrad)" fill-opacity="0.2" stroke="url(#loaderGrad)" stroke-width="4" stroke-linejoin="round"/>
+          <path d="M50 18 L80 31 V50 C80 67 67 79 50 84 C33 79 20 67 20 50 V31 L50 18 Z" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 2" opacity="0.6"/>
+          <rect class="core-box" x="42" y="42" width="16" height="16" rx="4" fill="url(#loaderCore)"/>
+          <path d="M50 32 V42 M50 58 V68 M32 50 H42 M58 50 H68" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round"/>
+          <path class="wave-path" d="M28 40 C34 32 66 32 72 40" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          <path class="wave-path" d="M28 60 C34 68 66 68 72 60" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+
+      <div class="loader-brand">
+        <h1 class="loader-title">SensoriX</h1>
+        <div class="loader-subtitle">SIMULATION PLATFORM</div>
+      </div>
+
+      <div class="loader-progress-box">
+        <div class="loader-bar-bg">
+          <div class="loader-bar-fill"></div>
+        </div>
+        <span class="loader-status-text" id="loader-status-text">Inicializando sistema...</span>
+      </div>
+    </div>
+  </div>
 
   <!-- Encabezado Móvil -->
   <div class="mobile-header">
@@ -904,6 +1111,30 @@
   <div class="toast-container" id="toast-container"></div>
 
   <script>
+    /* --- CONTROLADOR PANTALLA DE CARGA (LOADER) --- */
+    function initLoaderSequence() {
+      const loader = document.getElementById('sensorix-loader');
+      const statusText = document.getElementById('loader-status-text');
+
+      const steps = [
+        { time: 500, text: 'Cargando módulos de telemetría...' },
+        { time: 1100, text: 'Conectando con red de sensores SITE...' },
+        { time: 1700, text: 'Inicializando interfaz gráfica...' },
+        { time: 2200, text: '¡Sistema listo!' }
+      ];
+
+      steps.forEach(step => {
+        setTimeout(() => {
+          if (statusText) statusText.innerText = step.text;
+        }, step.time);
+      });
+
+      // Ocultar la pantalla de carga con transición suave
+      setTimeout(() => {
+        if (loader) loader.classList.add('hidden');
+      }, 2500);
+    }
+
     /* --- MENÚ RESPONSIVO MÓVIL --- */
     function toggleMobileMenu() {
       const sidebar = document.getElementById('sidebar');
@@ -1355,6 +1586,9 @@
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
+      // Iniciar animación de pantalla de carga
+      initLoaderSequence();
+
       const savedToken = getBotToken();
       if (savedToken) document.getElementById('telegram-bot-token-input').value = savedToken;
 
@@ -1497,7 +1731,6 @@
           document.getElementById('site-source-hum').innerHTML = r.isSimulation ? '<span class="badge-sim">SIMULADO</span>' : '<span class="badge-real">SENSOR REAL</span>';
           document.getElementById('site-source-water').innerHTML = r.isSimulation ? '<span class="badge-sim">SIMULADO</span>' : '<span class="badge-real">SENSOR REAL</span>';
 
-          // Asignar los valores leídos a los controles de simulación solo si no se están editando
           if (document.activeElement !== document.getElementById('sim-input-temp')) {
             document.getElementById('sim-input-temp').value = r.temperature;
           }
@@ -1543,7 +1776,7 @@
       }, () => showToast('No se obtuvo permiso de ubicación', 'error'));
     }
 
-    /* --- MODO SIMULACIÓN CORREGIDO (AISLAMIENTO DE VALORES) --- */
+    /* --- MODO SIMULACIÓN --- */
     async function sendSimulationReading(temp, hum, water) {
       if (!currentDeviceId) return showToast('Selecciona un SITE primero', 'warning');
 
@@ -1571,17 +1804,14 @@
       sendSimulationReading(temp, hum, water);
     }
 
-    // AISLAMIENTO: Esta función permite cambiar 1 solo valor manteniendo estrictamente los demás
     function presetSimulation(type) {
       const dev = devices.find(d => d.id === currentDeviceId);
       if (!dev) return;
 
-      // Se obtienen los valores actuales de los inputs de simulación como base
       let currentTemp = parseFloat(document.getElementById('sim-input-temp').value);
       let currentHum = parseFloat(document.getElementById('sim-input-hum').value);
       let currentWater = document.getElementById('sim-input-water').value === 'true';
 
-      // Fallbacks si las entradas no son válidas
       if (isNaN(currentTemp)) currentTemp = (dev.minTemp + dev.maxTemp) / 2;
       if (isNaN(currentHum)) currentHum = (dev.minHumidity + dev.maxHumidity) / 2;
 
@@ -1590,22 +1820,17 @@
       let newWater = currentWater;
 
       if (type === 'normal') {
-        // Establecer todos los valores dentro de los límites seguros predeterminados
         newTemp = (dev.minTemp + dev.maxTemp) / 2;
         newHum = (dev.minHumidity + dev.maxHumidity) / 2;
         newWater = false;
       } else if (type === 'temp_crit') {
-        // Mantiene la humedad y el agua sin cambios; solo eleva la temperatura sobre el límite
         newTemp = dev.maxTemp + 5.0;
       } else if (type === 'hum_crit') {
-        // Mantiene la temperatura y el agua sin cambios; solo eleva la humedad sobre el límite
         newHum = dev.maxHumidity + 15.0;
       } else if (type === 'water_crit') {
-        // Mantiene la temperatura y la humedad sin cambios; solo activa la detección de agua
         newWater = true;
       }
 
-      // Actualizar interfaz y enviar simulación
       document.getElementById('sim-input-temp').value = newTemp.toFixed(1);
       document.getElementById('sim-input-hum').value = newHum.toFixed(1);
       document.getElementById('sim-input-water').value = String(newWater);
