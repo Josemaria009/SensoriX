@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SensoriX Simulation - Monitoreo Multi-SITE</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root {
@@ -605,6 +606,20 @@
       .topbar { flex-direction: column; align-items: flex-start; }
       .topbar select { width: 100%; }
     }
+
+    /* ---------- Conexión Wokwi ---------- */
+    .wk-flow { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .wk-node { flex: 1; min-width: 150px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.9rem 1rem; text-align: center; font-size: 0.82rem; color: var(--text-secondary); transition: all .3s ease; }
+    .wk-node i { display: block; font-size: 1.4rem; color: var(--accent); margin-bottom: 0.35rem; }
+    .wk-node strong { display: block; color: var(--text-primary); font-size: 0.9rem; }
+    .wk-node.live { border-color: var(--status-normal); box-shadow: 0 0 14px rgba(34, 197, 94, 0.25); }
+    .wk-arrow { color: var(--accent); }
+    .form-group select { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.75rem; border-radius: 8px; font-size: 0.95rem; outline: none; }
+    .form-group select:focus { border-color: var(--accent); }
+    .hist-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.8rem; margin-top: 1rem; }
+    .hist-stats-grid .card small { color: var(--text-secondary); display: block; font-size: 0.78rem; margin-bottom: 0.25rem; }
+    .hist-stats-grid .card strong { font-size: 1.15rem; }
+    .hist-select { background: rgba(15, 23, 42, 0.8); color: var(--text-primary); border: 1px solid var(--accent); padding: 0.55rem 0.9rem; border-radius: 10px; outline: none; font-weight: 600; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -710,7 +725,9 @@
         <a class="nav-item" onclick="switchNav('section-sites')"><i class="fa-solid fa-list-check"></i> Gestión de SITEs</a>
         <a class="nav-item" onclick="switchNav('section-settings')"><i class="fa-solid fa-sliders"></i> Configuración de límites</a>
         <a class="nav-item" onclick="switchNav('section-alerts')"><i class="fa-solid fa-bell"></i> Historial de Alertas</a>
+        <a class="nav-item" onclick="switchNav('section-datos-historicos')"><i class="fa-solid fa-database"></i> Datos Históricos</a>
         <a class="nav-item" onclick="switchNav('section-telegram')"><i class="fa-solid fa-paper-plane"></i> Notificaciones Telegram</a>
+        <a class="nav-item" onclick="switchNav('section-wokwi')"><i class="fa-solid fa-microchip"></i> Conexión Wokwi</a>
       </nav>
     </aside>
 
@@ -959,6 +976,57 @@
         </div>
       </section>
 
+      <!-- 5b. DATOS HISTÓRICOS (solo lecturas de Wokwi) -->
+      <section id="section-datos-historicos" class="content-section">
+        <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; justify-content:space-between; margin-bottom:0.5rem;">
+          <div>
+            <h3>Datos Históricos</h3>
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">Historial de las lecturas recibidas desde Wokwi, las mismas que se muestran en el panel.</p>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:0.6rem; align-items:center;">
+            <select id="hist-site-select" class="hist-select" onchange="renderHistoricalSection()"></select>
+            <select id="hist-range-select" class="hist-select" onchange="renderHistoricalSection()">
+              <option value="3600000">Última hora</option>
+              <option value="86400000">Últimas 24 h</option>
+              <option value="0" selected>Todo el historial</option>
+            </select>
+            <button class="btn btn-secondary" onclick="renderHistoricalSection()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+            <button class="btn btn-primary" onclick="downloadHistoricalZip()"><i class="fa-solid fa-file-zipper"></i> Descargar ZIP</button>
+          </div>
+        </div>
+
+        <div class="hist-stats-grid">
+          <div class="card"><small>Registros</small><strong id="hist-count">0</strong></div>
+          <div class="card"><small>Temp. mínima</small><strong id="hist-temp-min">—</strong></div>
+          <div class="card"><small>Temp. máxima</small><strong id="hist-temp-max">—</strong></div>
+          <div class="card"><small>Temp. promedio</small><strong id="hist-temp-avg">—</strong></div>
+          <div class="card"><small>Hum. mínima</small><strong id="hist-hum-min">—</strong></div>
+          <div class="card"><small>Hum. máxima</small><strong id="hist-hum-max">—</strong></div>
+          <div class="card"><small>Hum. promedio</small><strong id="hist-hum-avg">—</strong></div>
+          <div class="card"><small>Eventos de agua</small><strong id="hist-water-count">0</strong></div>
+          <div class="card"><small>Última lectura</small><strong id="hist-last-update" style="font-size:0.85rem;">—</strong></div>
+        </div>
+
+        <div class="card" style="margin-top:1rem; height: 320px;">
+          <canvas id="histChart"></canvas>
+        </div>
+
+        <div class="table-container" style="margin-top:1rem;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Fecha/Hora</th>
+                <th>Temperatura</th>
+                <th>Humedad</th>
+                <th>Agua</th>
+              </tr>
+            </thead>
+            <tbody id="hist-table-body"></tbody>
+          </table>
+        </div>
+        <p style="color:var(--text-secondary); font-size:0.78rem; margin-top:0.5rem;">La tabla muestra las últimas 50 lecturas del rango seleccionado. El ZIP incluye todas.</p>
+      </section>
+
       <!-- 6. CONFIGURACIÓN Y GUÍA DE CHATBOT TELEGRAM -->
       <section id="section-telegram" class="content-section">
         <div style="max-width: 800px;">
@@ -1009,6 +1077,141 @@
               <button class="btn btn-secondary" onclick="detectTelegramChats()"><i class="fa-solid fa-magnifying-glass"></i> Detectar Chats Disponibles</button>
             </div>
             <div id="telegram-chats-list" style="margin-top: 1.5rem;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. CONEXIÓN WOKWI (ESP32 + DHT22) -->
+      <section id="section-wokwi" class="content-section">
+        <div style="max-width: 900px;">
+          <h3 style="margin-bottom: 0.5rem;"><i class="fa-solid fa-microchip" style="color: var(--accent);"></i> Conexión con Wokwi: Sensor ESP32 + DHT22</h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">Un ESP32 simulado en Wokwi mide temperatura, humedad y fuga de agua, y las envía a un puente de Google Apps Script. SensoriX consulta ese puente cada 5 segundos y registra las lecturas como <span class="badge-real">SENSOR REAL</span>, con sus alertas y notificaciones de Telegram.</p>
+
+          <div class="wk-flow">
+            <div class="wk-node" id="wk-node-esp"><i class="fa-solid fa-microchip"></i><strong>ESP32 + DHT22</strong>Wokwi (simulador)</div>
+            <i class="fa-solid fa-arrow-right wk-arrow"></i>
+            <div class="wk-node" id="wk-node-gas"><i class="fa-brands fa-google"></i><strong>Google Apps Script</strong>Puente HTTP</div>
+            <i class="fa-solid fa-arrow-right wk-arrow"></i>
+            <div class="wk-node" id="wk-node-sx"><i class="fa-solid fa-shield-halved"></i><strong>SensoriX</strong>Dashboard y alertas</div>
+          </div>
+
+          <div class="chatbot-step-card">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <div class="step-title">Crear el proyecto en Wokwi</div>
+              <div class="step-desc">Entra a <strong>wokwi.com</strong> → <em>New Project</em> → <strong>ESP32</strong> (Arduino). Pega <code>Wokwi_ESP32_DHT22.ino</code> en <code>sketch.ino</code>, <code>diagram.json</code> en su pestaña y <code>libraries.txt</code> en la suya. El circuito lleva el DHT22 en el pin D15 y un slider en D34 que simula un sensor de agua analógico (nivel de 0 a 100 %).</div>
+            </div>
+          </div>
+
+          <div class="chatbot-step-card">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <div class="step-title">Publicar el puente en Google Apps Script</div>
+              <div class="step-desc">En <strong>script.google.com</strong> crea un proyecto nuevo y pega <code>Apps_Script_SensoriX.gs</code>. Cambia <code>API_KEY</code> por una clave tuya. Ve a <strong>Implementar → Nueva implementación → Aplicación web</strong> con <em>Ejecutar como: Yo</em> y <em>Acceso: Cualquier persona</em>, autoriza los permisos y copia la URL que termina en <code>/exec</code>. Compruébala abriéndola en una ventana de incógnito con <code>?action=read&amp;key=TU_CLAVE</code> al final: debe mostrar un JSON y no pedir inicio de sesión.</div>
+            </div>
+          </div>
+
+          <div class="chatbot-step-card">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <div class="step-title">Configurar el ESP32 y encender la simulación</div>
+              <div class="step-desc">En <code>sketch.ino</code> reemplaza <code>SCRIPT_URL</code>, <code>API_KEY</code> y <code>SITE_NOMBRE</code> (el <strong>nombre</strong> del SITE tal como está en SensoriX, no el número de segmento) y pulsa <strong>Play</strong>. En el monitor serial debes ver <code>HTTP 200 → {"ok":true}</code> cada 10 segundos.</div>
+            </div>
+          </div>
+
+          <div class="chatbot-step-card">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              <div class="step-title">Vincular el puente con SensoriX</div>
+              <div class="step-desc">Pega la URL <code>/exec</code> y la misma clave en el formulario de abajo y pulsa <strong>Guardar y conectar</strong>. Cada lectura se asigna al SITE cuyo <strong>nombre</strong> coincida con <code>SITE_NOMBRE</code> (no distingue mayúsculas ni acentos). Cuando el estado cambie a <strong style="color: var(--status-normal);">RECIBIENDO DATOS</strong>, abre <em>Detalle de SITE</em> y verás la etiqueta SENSOR REAL.</div>
+            </div>
+          </div>
+
+          <div class="chatbot-step-card">
+            <div class="step-number">5</div>
+            <div class="step-content">
+              <div class="step-title">Provocar alertas desde Wokwi</div>
+              <div class="step-desc">Haz clic en el DHT22 dentro de Wokwi y sube la temperatura o la humedad por encima de los límites del SITE. Sube el slider del sensor de agua por encima del 35 % para simular una inundación (se envía al instante) y bájalo por debajo del 25 % para volver a seco. La alerta aparecerá en el Historial de Alertas y en Telegram si lo vinculaste.</div>
+            </div>
+          </div>
+
+          <div class="chatbot-step-card">
+            <div class="step-number">6</div>
+            <div class="step-content">
+              <div class="step-title">Vincular Telegram al SITE de Wokwi</div>
+              <div class="step-desc">En la tarjeta <strong>Notificaciones de Telegram</strong> de abajo elige el SITE (el mismo cuyo nombre pusiste en <code>SITE_NOMBRE</code>), pega su Chat ID, pulsa <strong>Guardar Chat ID</strong> y luego <strong>Enviar prueba</strong>. También necesitas el Bot Token guardado en la sección <em>Notificaciones Telegram</em>. Cada alerta se envía una vez (no se repite en 5 minutos) y recibes un aviso de <strong>SIN SEÑAL</strong> si el ESP32 deja de enviar datos y de <strong>SEÑAL RESTABLECIDA</strong> cuando vuelve.</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin: 1.5rem 0;">
+            <div class="form-group">
+              <label for="wk-url">URL del Web App de Apps Script (termina en /exec):</label>
+              <input type="text" id="wk-url" placeholder="https://script.google.com/macros/s/.../exec">
+            </div>
+            <div class="form-group">
+              <label for="wk-key">Clave API (la misma del .gs y del .ino):</label>
+              <input type="text" id="wk-key" placeholder="sensorix123">
+            </div>
+            <div class="form-group">
+              <label>SITEs registrados (copia el nombre exacto en <code>SITE_NOMBRE</code> del .ino):</label>
+              <div id="wk-sites" style="display: flex; gap: 0.5rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-secondary);"></div>
+            </div>
+            <div class="btn-flex">
+              <button class="btn btn-primary" onclick="wkSave()"><i class="fa-solid fa-plug"></i> Guardar y conectar</button>
+              <button class="btn btn-secondary" onclick="wkTest()"><i class="fa-solid fa-vial"></i> Probar conexión</button>
+              <button class="btn btn-secondary" onclick="wkOpen()"><i class="fa-solid fa-arrow-up-right-from-square"></i> Ver respuesta del puente</button>
+              <button class="btn btn-secondary" onclick="wkDisconnect()"><i class="fa-solid fa-power-off" style="color: var(--status-danger);"></i> Desconectar</button>
+            </div>
+            <div id="wk-msg" style="display: none; margin-top: 1rem; font-size: 0.85rem; line-height: 1.5;"></div>
+          </div>
+
+          <div class="card" style="margin-bottom: 1.5rem;">
+            <h4 style="margin-bottom: 0.4rem;"><i class="fa-solid fa-paper-plane" style="color: var(--accent);"></i> Notificaciones de Telegram del sensor de Wokwi <small style="font-size: 0.7rem; color: var(--text-secondary);">v4</small></h4>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">Las alertas de temperatura, humedad y agua, y los avisos de sin señal, llegan al Chat ID del SITE elegido.</p>
+            <div class="form-group">
+              <label for="wk-tg-site">SITE:</label>
+              <select id="wk-tg-site" onchange="wkTgLoad()"></select>
+            </div>
+            <div class="form-group">
+              <label for="wk-tg-chat">Telegram Chat ID de este SITE:</label>
+              <input type="text" id="wk-tg-chat" placeholder="Ej. 8073863464">
+            </div>
+            <div id="wk-tg-status" style="font-size: 0.85rem; line-height: 1.7; margin-bottom: 0.8rem;"></div>
+            <label style="display: flex; gap: 0.5rem; align-items: center; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;"><input type="checkbox" id="wk-tg-loss" checked onchange="wkTgPref()"> Avisar si el ESP32 deja de enviar datos y cuando se restablezca</label>
+            <div class="btn-flex">
+              <button class="btn btn-primary" onclick="wkTgSave()"><i class="fa-solid fa-floppy-disk"></i> Guardar Chat ID</button>
+              <button class="btn btn-secondary" onclick="wkTgTest()"><i class="fa-solid fa-paper-plane"></i> Enviar prueba</button>
+              <button class="btn btn-secondary" onclick="wkTgCheck()"><i class="fa-solid fa-shield-check"></i> Verificar Bot Token</button>
+              <button class="btn btn-secondary" onclick="switchNav('section-telegram')"><i class="fa-solid fa-robot"></i> Configurar Bot Token</button>
+            </div>
+            <div id="wk-tg-msg" style="display: none; margin-top: 1rem; font-size: 0.85rem; line-height: 1.5;"></div>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="card">
+              <div class="card-header"><span>Estado del enlace</span><i class="fa-solid fa-satellite-dish"></i></div>
+              <div class="card-body" style="margin: 1.2rem 0;"><span class="site-status-pill status-OFFLINE" id="wk-status">DESCONECTADO</span></div>
+              <span class="card-unit" style="font-size: 0.78rem;">Recibidas: <strong id="wk-count">0</strong> · Última: <strong id="wk-last">--</strong></span>
+            </div>
+            <div class="card">
+              <div class="card-header"><span>Temperatura (DHT22)</span><i class="fa-solid fa-temperature-half"></i></div>
+              <div class="card-body"><span class="card-value" id="wk-temp">--</span><span class="card-unit">°C</span></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span>Humedad (DHT22)</span><i class="fa-solid fa-droplet"></i></div>
+              <div class="card-body"><span class="card-value" id="wk-hum">--</span><span class="card-unit">%</span></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span>Sensor de agua</span><i class="fa-solid fa-water"></i></div>
+              <div class="card-body"><span class="card-value" id="wk-water" style="font-size: 1.7rem;">--</span></div>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead><tr><th>Hora</th><th>SITE (nombre)</th><th>Temperatura</th><th>Humedad</th><th>Agua</th></tr></thead>
+              <tbody id="wk-log"><tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">Aún no se han recibido lecturas del ESP32.</td></tr></tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -1291,13 +1494,23 @@
     }
 
     /* --- TELEGRAM LOGIC --- */
-    function getBotToken() { return localStorage.getItem('sg_telegram_token') || ''; }
+    function getBotToken() { return (localStorage.getItem('sg_telegram_token') || '').trim(); }
 
-    function saveGlobalBotToken() {
-      const val = document.getElementById('telegram-bot-token-input').value.trim();
+    async function saveGlobalBotToken() {
+      const val = document.getElementById('telegram-bot-token-input').value.trim().replace(/^bot/i, '').replace(/\s+/g, '');
       if (!val) return showToast('Ingresa un token válido antes de guardar', 'warning');
-      localStorage.setItem('sg_telegram_token', val);
-      showToast('Token del bot guardado correctamente', 'success');
+      if (/^-?\d{5,}$/.test(val)) return showToast('Eso es un Chat ID, no un Bot Token. El token se ve así: 123456789:AA...', 'error');
+      if (!/^\d{6,}:[\w-]{25,}$/.test(val)) return showToast('Formato de token inválido. Cópialo completo desde @BotFather (123456789:AA...)', 'error');
+      try {
+        const r = await (await fetch(`https://api.telegram.org/bot${val}/getMe`)).json();
+        if (!r.ok) return showToast('Telegram rechazó el token: ' + r.description, 'error');
+        document.getElementById('telegram-bot-token-input').value = val;
+        localStorage.setItem('sg_telegram_token', val);
+        showToast(`Token guardado — bot @${r.result.username}`, 'success');
+      } catch (e) {
+        localStorage.setItem('sg_telegram_token', val);
+        showToast('Token guardado, pero no se pudo verificar con Telegram (sin conexión)', 'warning');
+      }
     }
 
     async function detectTelegramChats() {
@@ -1342,18 +1555,27 @@
       }
     }
 
-    async function enviarTelegram(mensaje, chatId) {
+    const tgCool = {};
+    let tgErrAt = 0;
+    async function enviarTelegram(mensaje, chatId, dedupeKey) {
       const token = getBotToken();
       if (!token || !chatId) return;
+      if (dedupeKey) {                                   // anti-spam: el mismo aviso, máximo 1 vez cada 5 min
+        if (Date.now() - (tgCool[dedupeKey] || 0) < 300000) return;
+        tgCool[dedupeKey] = Date.now();
+      }
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
       try {
-        await fetch(url, {
+        const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ chat_id: chatId, text: mensaje })
         });
+        const data = await res.json().catch(() => ({}));
+        if (!data.ok) throw new Error(data.description || 'respuesta inválida de Telegram');
       } catch (error) {
         console.error('Error enviando a Telegram:', error);
+        if (Date.now() - tgErrAt > 60000) { tgErrAt = Date.now(); showToast('Telegram: ' + wkTgHint(String(error.message)).replace(/</g, '&lt;'), 'error'); }
       }
     }
 
@@ -1462,9 +1684,10 @@
           return makeRes({ device: dev, reading: latest, status, lastCommSeconds });
         }
 
-        if (url.match(/\/api\/devices\/[^\/]+\/history$/) && method === 'GET') {
+        if (url.match(/\/api\/devices\/[^\/]+\/history(\?.*)?$/) && method === 'GET') {
           const id = url.split('/')[3];
-          const history = readings.filter(r => r.deviceId === id).slice(-20);
+          const lim = Number(new URL(url, location.href).searchParams.get('limit')) || 20;
+          const history = readings.filter(r => r.deviceId === id).slice(-lim);
           return makeRes(history);
         }
 
@@ -1481,7 +1704,9 @@
             temperature: parseFloat(body.temperature),
             humidity: parseFloat(body.humidity),
             waterDetected: Boolean(body.waterDetected),
+            level: body.level == null ? null : Number(body.level),
             isSimulation: Boolean(body.isSimulation),
+            source: body.source || (body.isSimulation ? 'simulacion' : 'manual'),
             timestamp: nowIso
           };
           readings.push(newReading);
@@ -1489,14 +1714,17 @@
 
           const dev = devices[devIndex];
           let activeAlerts = [];
+          const fromWokwi = body.source === 'wokwi';
+          const isDup = a => { for (const x of alerts) { if (x.deviceId !== a.deviceId) continue; if (x.type === 'RESTABLECIDO') return false; if (x.type === a.type && Date.now() - new Date(x.timestamp) < 300000) return true; } return false; };
+          const pushAlert = a => { if (fromWokwi && isDup(a)) return; alerts.unshift(a); };
 
           // Evaluación individual e independiente de cada variable
           if (newReading.waterDetected) {
             activeAlerts.push({
               header: 'FUGA DE AGUA',
-              text: `• FUGA DE AGUA: ¡Inundación detectada en el sensor!`
+              text: `• FUGA DE AGUA: ¡Inundación detectada en el sensor!${newReading.level != null ? ` (nivel ${newReading.level}%)` : ''}`
             });
-            alerts.unshift({ id: Date.now() + 1, deviceId: dev.id, type: 'FUGA DE AGUA', message: '¡INUNDACIÓN DETECTADA! Agua presente en el sensor.', value: 'SÍ', timestamp: nowIso });
+            pushAlert({ id: Date.now() + 1, deviceId: dev.id, type: 'FUGA DE AGUA', message: '¡INUNDACIÓN DETECTADA! Agua presente en el sensor.', value: 'SÍ', timestamp: nowIso });
           }
           
           if (newReading.temperature > dev.maxTemp) {
@@ -1504,13 +1732,13 @@
               header: 'TEMPERATURA ALTA',
               text: `• TEMP ALTA: ${newReading.temperature}°C (Límite Máx: ${dev.maxTemp}°C)`
             });
-            alerts.unshift({ id: Date.now() + 2, deviceId: dev.id, type: 'TEMP ALTA', message: `Temperatura alta: ${newReading.temperature}°C excede límite (${dev.maxTemp}°C)`, value: `${newReading.temperature} °C`, timestamp: nowIso });
+            pushAlert({ id: Date.now() + 2, deviceId: dev.id, type: 'TEMP ALTA', message: `Temperatura alta: ${newReading.temperature}°C excede límite (${dev.maxTemp}°C)`, value: `${newReading.temperature} °C`, timestamp: nowIso });
           } else if (newReading.temperature < dev.minTemp) {
             activeAlerts.push({
               header: 'TEMPERATURA BAJA',
               text: `• TEMP BAJA: ${newReading.temperature}°C (Límite Mín: ${dev.minTemp}°C)`
             });
-            alerts.unshift({ id: Date.now() + 3, deviceId: dev.id, type: 'TEMP BAJA', message: `Temperatura baja: ${newReading.temperature}°C es menor al límite (${dev.minTemp}°C)`, value: `${newReading.temperature} °C`, timestamp: nowIso });
+            pushAlert({ id: Date.now() + 3, deviceId: dev.id, type: 'TEMP BAJA', message: `Temperatura baja: ${newReading.temperature}°C es menor al límite (${dev.minTemp}°C)`, value: `${newReading.temperature} °C`, timestamp: nowIso });
           }
           
           if (newReading.humidity > dev.maxHumidity) {
@@ -1518,13 +1746,13 @@
               header: 'HUMEDAD ALTA',
               text: `• HUMEDAD ALTA: ${newReading.humidity}% (Límite Máx: ${dev.maxHumidity}%)`
             });
-            alerts.unshift({ id: Date.now() + 4, deviceId: dev.id, type: 'HUMEDAD ALTA', message: `Humedad alta: ${newReading.humidity}% excede límite (${dev.maxHumidity}%)`, value: `${newReading.humidity} %`, timestamp: nowIso });
+            pushAlert({ id: Date.now() + 4, deviceId: dev.id, type: 'HUMEDAD ALTA', message: `Humedad alta: ${newReading.humidity}% excede límite (${dev.maxHumidity}%)`, value: `${newReading.humidity} %`, timestamp: nowIso });
           } else if (newReading.humidity < dev.minHumidity) {
             activeAlerts.push({
               header: 'HUMEDAD BAJA',
               text: `• HUMEDAD BAJA: ${newReading.humidity}% (Límite Mín: ${dev.minHumidity}%)`
             });
-            alerts.unshift({ id: Date.now() + 5, deviceId: dev.id, type: 'HUMEDAD BAJA', message: `Humedad baja: ${newReading.humidity}% es menor al límite (${dev.minHumidity}%)`, value: `${newReading.humidity} %`, timestamp: nowIso });
+            pushAlert({ id: Date.now() + 5, deviceId: dev.id, type: 'HUMEDAD BAJA', message: `Humedad baja: ${newReading.humidity}% es menor al límite (${dev.minHumidity}%)`, value: `${newReading.humidity} %`, timestamp: nowIso });
           }
 
           if (activeAlerts.length > 0) {
@@ -1538,7 +1766,7 @@
               fullAlertMsg = `🚨 ALERTA MULTI-VALOR EN ${dev.id} (${dev.name})\n\nSe han detectado las siguientes anomalías simultáneas:\n${alertTexts}`;
             }
 
-            enviarTelegram(fullAlertMsg, dev.telegramChatId);
+            if (body.notify !== false) enviarTelegram(fullAlertMsg, dev.telegramChatId, fromWokwi ? dev.id + '|' + activeAlerts.map(a => a.header).join('+') : null);
           } else if (devices[devIndex].inAlert) {
             devices[devIndex].inAlert = false;
             const recoveryMsg = `✅ NIVELES NORMALIZADOS EN ${dev.id} (${dev.name})\nLos sensores han regresado dentro de los límites seguros:\n• Temp: ${newReading.temperature}°C\n• Humedad: ${newReading.humidity}%\n• Agua: Seco`;
@@ -1550,7 +1778,8 @@
               value: `${newReading.temperature}°C / ${newReading.humidity}%`, 
               timestamp: nowIso 
             });
-            enviarTelegram(recoveryMsg, dev.telegramChatId);
+            Object.keys(tgCool).forEach(k => { if (k.startsWith(dev.id + '|')) delete tgCool[k]; });
+            if (body.notify !== false) enviarTelegram(recoveryMsg, dev.telegramChatId);
           }
 
           localStorage.setItem('sg_devices', JSON.stringify(devices));
@@ -1601,6 +1830,8 @@
         renderGeneralDashboard();
       } else if (document.getElementById('dash-detail').classList.contains('active')) {
         renderDetailDashboard();
+      } else if (document.getElementById('section-datos-historicos').classList.contains('active')) {
+        renderHistoricalSection();
       }
     }
 
@@ -1627,6 +1858,8 @@
       if (sectionId === 'section-sites') renderSitesTable();
       if (sectionId === 'section-settings') loadSiteSettings();
       if (sectionId === 'section-alerts') loadAlertsTable();
+      if (sectionId === 'section-wokwi') wkRender();
+      if (sectionId === 'section-datos-historicos') initHistoricalSection();
     }
 
     async function fetchDevices() {
@@ -1952,6 +2185,269 @@
       });
     }
 
+    /* --- DATOS HISTÓRICOS (solo lecturas de Wokwi) --- */
+    let histChartInstance = null;
+
+    function fmtNum(n, unit = '') {
+      if (n === null || n === undefined || isNaN(n)) return '—';
+      return `${Number(n).toFixed(1)}${unit}`;
+    }
+
+    function calcStats(values) {
+      const v = values.filter(x => !isNaN(x));
+      if (!v.length) return null;
+      return { min: Math.min(...v), max: Math.max(...v), avg: v.reduce((a, b) => a + b, 0) / v.length };
+    }
+
+    function filterRowsByRange(rows, rangeMs) {
+      if (!rangeMs) return rows;
+      const limit = Date.now() - rangeMs;
+      return rows.filter(r => new Date(r.timestamp).getTime() >= limit);
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // Solo las lecturas que llegaron por el puente de Wokwi (historial propio)
+    async function getHistoricalRows(deviceId) {
+      return wkHistAll()
+        .filter(r => r.deviceId === deviceId)
+        .map(r => ({
+          timestamp: r.timestamp,
+          temperature: Number(r.temperature),
+          humidity: Number(r.humidity),
+          waterDetected: wkBool(r.waterDetected),
+          level: r.level == null ? null : Number(r.level)
+        }))
+        .sort((x, y) => new Date(x.timestamp) - new Date(y.timestamp));
+    }
+
+    function populateHistSiteSelector() {
+      const sel = document.getElementById('hist-site-select');
+      const prev = sel.value || currentDeviceId;
+      sel.innerHTML = devices.map(d => `<option value="${d.id}">${escapeHtml(d.name)} (${escapeHtml(d.id)})</option>`).join('');
+      if (devices.some(d => d.id === prev)) sel.value = prev;
+    }
+
+    async function initHistoricalSection() {
+      populateHistSiteSelector();
+      await renderHistoricalSection();
+    }
+
+    async function renderHistoricalSection() {
+      const deviceId = document.getElementById('hist-site-select').value;
+      const tbody = document.getElementById('hist-table-body');
+      if (!deviceId) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-secondary);">Registra un SITE para ver su historial.</td></tr>';
+        return;
+      }
+
+      const rangeMs = Number(document.getElementById('hist-range-select').value);
+      const rows = filterRowsByRange(await getHistoricalRows(deviceId), rangeMs);
+
+      const t = calcStats(rows.map(r => r.temperature));
+      const h = calcStats(rows.map(r => r.humidity));
+      const setText = (id, txt) => { document.getElementById(id).innerText = txt; };
+
+      setText('hist-count', rows.length);
+      setText('hist-temp-min', fmtNum(t && t.min, ' °C'));
+      setText('hist-temp-max', fmtNum(t && t.max, ' °C'));
+      setText('hist-temp-avg', fmtNum(t && t.avg, ' °C'));
+      setText('hist-hum-min', fmtNum(h && h.min, ' %'));
+      setText('hist-hum-max', fmtNum(h && h.max, ' %'));
+      setText('hist-hum-avg', fmtNum(h && h.avg, ' %'));
+      setText('hist-water-count', rows.filter(r => r.waterDetected).length);
+      setText('hist-last-update', rows.length ? new Date(rows[rows.length - 1].timestamp).toLocaleString() : '—');
+
+      const labels = rows.map(r => new Date(r.timestamp).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }));
+      const temps = rows.map(r => r.temperature);
+      const hums = rows.map(r => r.humidity);
+
+      if (histChartInstance) {
+        histChartInstance.data.labels = labels;
+        histChartInstance.data.datasets[0].data = temps;
+        histChartInstance.data.datasets[1].data = hums;
+        histChartInstance.update('none');
+      } else {
+        const ctx = document.getElementById('histChart').getContext('2d');
+        histChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Temperatura (°C)', data: temps, borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', fill: true, tension: 0.3 },
+              { label: 'Humedad (%)', data: hums, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', fill: true, tension: 0.3 }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#f8fafc' } } },
+            scales: {
+              x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: '#334155' } },
+              y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+            }
+          }
+        });
+      }
+
+      tbody.innerHTML = '';
+      const recent = rows.slice(-50).reverse();
+      if (!recent.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-secondary);">No hay lecturas de Wokwi en este rango.</td></tr>';
+        return;
+      }
+      recent.forEach(r => {
+        const tr = document.createElement('tr');
+        const agua = r.waterDetected
+          ? '<span style="color:var(--status-danger);">Sí' + (r.level != null ? ' (' + r.level + '%)' : '') + '</span>'
+          : 'No';
+        tr.innerHTML = `
+          <td>${new Date(r.timestamp).toLocaleString()}</td>
+          <td>${r.temperature.toFixed(1)} °C</td>
+          <td>${r.humidity.toFixed(1)} %</td>
+          <td>${agua}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function buildHistoricalViewerHtml(dev, rows) {
+      const data = JSON.stringify(rows).replace(/</g, '\\u003c');
+      const name = escapeHtml(`${dev.name} (${dev.id})`);
+      return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Datos históricos Wokwi - ${name}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\/script>
+<style>
+  body { margin: 0; background: #0f172a; color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; padding: 1.5rem; }
+  h1 { font-size: 1.4rem; margin: 0 0 0.3rem; }
+  p { color: #94a3b8; font-size: 0.85rem; margin: 0.2rem 0 1rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.8rem; margin-bottom: 1rem; }
+  .card { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 1rem; }
+  .card small { color: #94a3b8; display: block; margin-bottom: 0.3rem; }
+  .card strong { font-size: 1.2rem; }
+  .chart-box { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 1rem; height: 360px; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+<h1>${name}</h1>
+<p id="rango"></p>
+<div class="grid" id="stats"></div>
+<div class="chart-box"><canvas id="c"></canvas></div>
+<div class="chart-box"><canvas id="h"></canvas></div>
+<script>
+const datos = ${data};
+function estad(v) {
+  const a = v.filter(function (x) { return !isNaN(x); });
+  if (!a.length) return null;
+  return { min: Math.min.apply(null, a), max: Math.max.apply(null, a), avg: a.reduce(function (s, x) { return s + x; }, 0) / a.length };
+}
+function f(n, u) { return n == null ? '—' : n.toFixed(1) + u; }
+const t = datos.map(function (r) { return r.temperature; });
+const h = datos.map(function (r) { return r.humidity; });
+const st = estad(t), sh = estad(h);
+const agua = datos.filter(function (r) { return r.waterDetected; }).length;
+document.getElementById('rango').textContent = datos.length
+  ? datos.length + ' lecturas de Wokwi · del ' + new Date(datos[0].timestamp).toLocaleString() + ' al ' + new Date(datos[datos.length - 1].timestamp).toLocaleString()
+  : 'Sin lecturas de Wokwi';
+const tarjetas = [
+  ['Temp. mínima', st ? f(st.min, ' °C') : '—'],
+  ['Temp. máxima', st ? f(st.max, ' °C') : '—'],
+  ['Temp. promedio', st ? f(st.avg, ' °C') : '—'],
+  ['Hum. mínima', sh ? f(sh.min, ' %') : '—'],
+  ['Hum. máxima', sh ? f(sh.max, ' %') : '—'],
+  ['Hum. promedio', sh ? f(sh.avg, ' %') : '—'],
+  ['Eventos de agua', agua]
+];
+document.getElementById('stats').innerHTML = tarjetas.map(function (x) {
+  return '<div class="card"><small>' + x[0] + '</small><strong>' + x[1] + '</strong></div>';
+}).join('');
+const etiquetas = datos.map(function (r) { return new Date(r.timestamp).toLocaleString(); });
+const opciones = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { labels: { color: '#f8fafc' } } },
+  scales: {
+    x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: '#334155' } },
+    y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+  }
+};
+new Chart(document.getElementById('c'), { type: 'line', data: { labels: etiquetas, datasets: [
+  { label: 'Temperatura (°C)', data: t, borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', fill: true, tension: 0.3 }
+] }, options: opciones });
+new Chart(document.getElementById('h'), { type: 'line', data: { labels: etiquetas, datasets: [
+  { label: 'Humedad (%)', data: h, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', fill: true, tension: 0.3 }
+] }, options: opciones });
+<\/script>
+</body>
+</html>`;
+    }
+
+    async function downloadHistoricalZip() {
+      const deviceId = document.getElementById('hist-site-select').value;
+      if (!deviceId) return showToast('Selecciona un SITE primero', 'warning');
+      if (typeof JSZip === 'undefined') return showToast('No se cargó el generador de ZIP. Revisa tu conexión.', 'error');
+
+      const dev = devices.find(d => d.id === deviceId) || { id: deviceId, name: deviceId };
+      const rangeSel = document.getElementById('hist-range-select');
+      const rangeLabel = rangeSel.selectedOptions[0].text;
+      const rows = filterRowsByRange(await getHistoricalRows(deviceId), Number(rangeSel.value));
+      if (!rows.length) return showToast('No hay lecturas de Wokwi en este rango para descargar', 'warning');
+
+      const safeId = String(dev.id).replace(/[^a-zA-Z0-9_-]/g, '_');
+      const folder = `datos_wokwi_${safeId}`;
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+
+      const csvLines = rows.map(r => [
+        new Date(r.timestamp).toISOString(), r.temperature, r.humidity, r.waterDetected ? 'si' : 'no', r.level == null ? '' : r.level
+      ].join(','));
+      const csv = '\uFEFF' + ['fecha_hora,temperatura_c,humedad_pct,agua_detectada,nivel_agua_pct', ...csvLines].join('\r\n');
+
+      const json = JSON.stringify({
+        site: { id: dev.id, nombre: dev.name, ciudad: dev.city || '' },
+        fuente: 'Wokwi (ESP32 + DHT22)',
+        rango: rangeLabel,
+        generado: new Date().toISOString(),
+        total_registros: rows.length,
+        registros: rows
+      }, null, 2);
+
+      const readme = [
+        'SensoriX - Datos históricos de Wokwi',
+        '',
+        'SITE: ' + dev.name + ' (' + dev.id + ')',
+        'Rango: ' + rangeLabel,
+        'Registros: ' + rows.length,
+        '',
+        'Contenido:',
+        '- datos.csv: tabla para abrir en Excel o Google Sheets.',
+        '- datos.json: los mismos datos en formato JSON.',
+        '- visor_graficas.html: ábrelo en el navegador (necesita internet) para ver las gráficas.',
+        ''
+      ].join('\r\n');
+
+      const zip = new JSZip();
+      zip.file(`${folder}/datos.csv`, csv);
+      zip.file(`${folder}/datos.json`, json);
+      zip.file(`${folder}/visor_graficas.html`, buildHistoricalViewerHtml(dev, rows));
+      zip.file(`${folder}/LEEME.txt`, readme);
+
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${folder}_${stamp}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('ZIP descargado correctamente', 'success');
+    }
+
     /* --- VISTA: HISTORIAL DE ALERTAS --- */
     async function loadAlertsTable() {
       const alerts = await apiFetch(`${API_BASE}/alerts`);
@@ -1976,6 +2472,384 @@
         tbody.appendChild(tr);
       });
     }
+
+    /* =========================================================
+       ---------- CONEXIÓN WOKWI (ESP32 + DHT22) ----------
+       Las lecturas se asignan al SITE por su NOMBRE.
+       ========================================================= */
+    const WK_CFG = 'sg_wokwi_cfg';
+    const WK_EVERY = 5000;
+    const WK_HELP = 'Sin respuesta del Apps Script. Abre la URL en una ventana de incógnito: si pide iniciar sesión o da error, publica el Web App con acceso "Cualquier persona" y usa la URL /exec nueva (paso 2).';
+    let wkTimer = null, wkSeq = 0, wkCount = 0, wkLog = [], wkLastTs = 0, wkWarned = {}, wkLost = false, wkSawFresh = false;
+
+    const wkNorm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const wkEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const wkBool = v => v === true || v === 1 || /^(true|1|si|sí)$/i.test(String(v).trim());
+    const wkSiteByName = name => devices.find(d => wkNorm(d.name) === wkNorm(name));
+    function wkCfg() { try { return JSON.parse(localStorage.getItem(WK_CFG)) || {}; } catch (e) { return {}; } }
+
+    function wkMsg(text, type, id) {
+      const el = document.getElementById(id || 'wk-msg');
+      el.style.display = text ? 'block' : 'none';
+      el.style.color = type === 'ok' ? 'var(--status-normal)' : type === 'error' ? 'var(--status-danger)' : 'var(--status-warning)';
+      el.innerHTML = text || '';
+    }
+
+    function wkRender() {
+      const c = wkCfg();
+      document.getElementById('wk-url').value = c.url || '';
+      document.getElementById('wk-key').value = c.key || '';
+      document.getElementById('wk-sites').innerHTML = devices.length
+        ? devices.map(d => `<code style="background: var(--bg-card); padding: 2px 8px; border-radius: 6px;">${wkEsc(d.name)}</code>`).join('')
+        : 'Aún no hay SITEs registrados.';
+      wkTgRender();
+      wkRenderLive();
+    }
+
+    function wkStatus() {
+      const on = !!wkTimer, fresh = Date.now() - wkLastTs < 45000, bad = wkLog[0] && !wkLog[0].matched;
+      const st = !on ? ['OFFLINE', 'DESCONECTADO'] : !fresh ? ['ADVERTENCIA', 'ESPERANDO ESP32'] : bad ? ['ADVERTENCIA', 'NOMBRE DE SITE NO COINCIDE'] : ['NORMAL', 'RECIBIENDO DATOS'];
+      const el = document.getElementById('wk-status');
+      el.className = 'site-status-pill status-' + st[0];
+      el.innerText = st[1];
+      document.getElementById('wk-node-esp').classList.toggle('live', on && fresh);
+      document.getElementById('wk-node-gas').classList.toggle('live', on);
+      document.getElementById('wk-node-sx').classList.toggle('live', on && fresh && !bad);
+      document.getElementById('wk-count').innerText = wkCount;
+      wkCheckSignal();
+    }
+
+    function wkRenderLive() {
+      const r = wkLog[0];
+      if (r) {
+        document.getElementById('wk-temp').innerText = r.temperature.toFixed(1);
+        document.getElementById('wk-hum').innerText = r.humidity.toFixed(1);
+        const w = document.getElementById('wk-water');
+        w.innerText = (r.waterDetected ? 'AGUA' : 'SECO') + (r.level != null ? ' ' + r.level + '%' : '');
+        w.style.color = r.waterDetected ? 'var(--status-danger)' : 'var(--status-normal)';
+        document.getElementById('wk-last').innerText = new Date(r.ts).toLocaleTimeString();
+      }
+      document.getElementById('wk-log').innerHTML = wkLog.map(x =>
+        `<tr><td>${new Date(x.ts).toLocaleTimeString()}</td><td>${wkEsc(x.site) || '-'} ${x.matched ? '<i class="fa-solid fa-link" style="color:var(--status-normal);"></i>' : '<span style="color:var(--status-warning);">sin SITE</span>'}</td><td>${x.temperature} °C</td><td>${x.humidity} %</td><td>${x.waterDetected ? '<span style="color:var(--status-danger);">Detectada</span>' : 'Seco'}${x.level != null ? ' (' + x.level + '%)' : ''}</td></tr>`
+      ).join('') || '<tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">Aún no se han recibido lecturas del ESP32.</td></tr>';
+      wkStatus();
+    }
+
+    function wkJsonp(url) {
+      return new Promise((ok, fail) => {
+        const cb = 'wkcb' + Date.now(), s = document.createElement('script');
+        const end = () => { clearTimeout(t); delete window[cb]; s.remove(); };
+        const t = setTimeout(() => { end(); fail(new Error('timeout')); }, 8000);
+        window[cb] = d => { end(); ok(d); };
+        s.onerror = () => { end(); fail(new Error('bloqueado')); };
+        s.src = url + '&callback=' + cb;
+        document.head.appendChild(s);
+      });
+    }
+
+    async function wkRead(c, since) {
+      const url = `${c.url}?action=read&key=${encodeURIComponent(c.key)}&since=${since}&_=${Date.now()}`;
+      let data;
+      try { data = await (await fetch(url)).json(); }
+      catch (e) { try { data = await wkJsonp(url); } catch (e2) { throw new Error(WK_HELP); } }
+      if (!data || !data.ok) throw new Error((data && data.error) || 'Respuesta inválida del puente');
+      return data;
+    }
+
+    async function wkPoll(manual) {
+      const c = wkCfg();
+      if (!c.url) return;
+      try {
+        const data = await wkRead(c, wkSeq);
+        if (data.seq < wkSeq) { wkSeq = 0; return wkPoll(manual); }   // el puente fue reiniciado
+        let list = data.readings || [];
+        if (list.length && wkSeq === 0) {                                // primera consulta: solo la más reciente
+          const l = list[list.length - 1];
+          wkSeq = l.seq; wkLastTs = Date.parse(l.ts);
+          list = (Date.now() - wkLastTs < 60000) ? [l] : [];
+        }
+        if (list.length) { wkSawFresh = true; await fetchDevices(); }
+        let sent = 0;
+        const batch = list.slice(-10);
+        for (let i = 0; i < batch.length; i++) {
+          const r = batch[i];
+          wkSeq = Math.max(wkSeq, r.seq);
+          r.temperature = Number(r.temperature);
+          r.humidity = Number(r.humidity);
+          r.waterDetected = wkBool(r.waterDetected);
+          r.level = r.level == null ? null : Number(r.level);
+          const dev = wkSiteByName(r.site);
+          r.matched = !!dev; r.devId = dev ? dev.id : null;
+          if (dev) {
+            const res = await fetch(`${API_BASE}/sensors`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ deviceId: dev.id, temperature: r.temperature, humidity: r.humidity, waterDetected: r.waterDetected, level: r.level, isSimulation: false, source: 'wokwi', notify: false })
+            });
+            if (!res.ok) throw new Error('No se pudo registrar la lectura en el SITE "' + dev.name + '"');
+            sent++; wkCount++;
+            wkLastTs = Date.now();   // hora de recepción local (evita falsas alarmas por desfase de relojes)
+            wkStoreHistory(dev.id, r);
+          } else if (!wkWarned[r.site]) {
+            wkWarned[r.site] = true;
+            showToast(`Wokwi: ningún SITE se llama "${wkEsc(r.site) || '(vacío)'}"`, 'warning');
+          }
+          wkLog.unshift(r);
+        }
+        wkLog = wkLog.slice(0, 8);
+        if (sent) wkNotifyLatest(batch);
+        wkWarned._err = false;
+        wkRenderLive();
+        if (sent) pollData();
+        const unmatched = wkLog[0] && !wkLog[0].matched;
+        if (unmatched) wkMsg(`El ESP32 envía el SITE "<strong>${wkEsc(wkLog[0].site) || '(vacío)'}</strong>", pero ningún SITE se llama así. En el .ino cambia <code>SITE_NOMBRE</code> por el nombre exacto de tu SITE: ${devices.map(d => '<code>' + wkEsc(d.name) + '</code>').join(' ')}`, 'warn');
+        else if (sent) wkMsg('Recibiendo lecturas de Wokwi correctamente.', 'ok');
+        else if (manual) wkMsg('Puente conectado. Esperando lecturas del ESP32 (¿está corriendo la simulación?).', 'warn');
+      } catch (e) {
+        wkStatus();
+        wkMsg(wkEsc(e.message), 'error');
+        if (manual || !wkWarned._err) { showToast('Wokwi: sin conexión con el puente', 'error'); wkWarned._err = true; }
+      }
+    }
+
+    function wkForm() {
+      return { url: document.getElementById('wk-url').value.trim(), key: document.getElementById('wk-key').value.trim() };
+    }
+
+    async function wkTest() {
+      const c = wkForm();
+      if (!c.url || !c.key) return showToast('Completa la URL y la clave API', 'warning');
+      try {
+        const d = await wkRead(c, 0);
+        const names = [...new Set(d.readings.map(r => r.site))].filter(Boolean);
+        wkMsg(`Conexión correcta · ${d.readings.length} lectura(s) en el puente` + (names.length ? ` · SITE recibido: ${names.map(n => '<strong>' + wkEsc(n) + '</strong>').join(', ')}` : ''), 'ok');
+        showToast('Conexión con el puente correcta', 'success');
+      } catch (e) { wkMsg(wkEsc(e.message), 'error'); showToast('No se pudo conectar con el puente', 'error'); }
+    }
+
+    function wkOpen() {
+      const c = wkForm();
+      if (!c.url) return showToast('Pega primero la URL /exec', 'warning');
+      window.open(`${c.url}?action=read&key=${encodeURIComponent(c.key)}`, '_blank');
+    }
+
+    function wkSave() {
+      const c = wkForm();
+      if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(c.url)) return showToast('La URL debe ser la del Web App y terminar en /exec', 'warning');
+      if (!c.key) return showToast('Escribe la clave API', 'warning');
+      c.on = true;
+      localStorage.setItem(WK_CFG, JSON.stringify(c));
+      wkStart();
+      showToast('Conectando con el puente de Wokwi…', 'info');
+    }
+
+    function wkStart() {
+      clearInterval(wkTimer);
+      wkSeq = 0; wkWarned = {}; wkLost = false; wkSawFresh = false;
+      wkTimer = setInterval(() => wkPoll(false), WK_EVERY);
+      wkPoll(true);
+      wkStatus();
+    }
+
+    function wkDisconnect() {
+      const c = wkCfg(); c.on = false;
+      localStorage.setItem(WK_CFG, JSON.stringify(c));
+      clearInterval(wkTimer); wkTimer = null;
+      wkMsg('');
+      wkStatus();
+      showToast('Conexión con Wokwi detenida', 'info');
+    }
+
+    
+    /* ---------- Telegram del sensor de Wokwi ---------- */
+    const wkTgDev = () => devices.find(d => d.id === document.getElementById('wk-tg-site').value);
+
+    function wkTgRender() {
+      const sel = document.getElementById('wk-tg-site');
+      const prefer = sel.value || (wkLog.find(x => x.devId) || {}).devId || wkCfg().tgSite;
+      sel.innerHTML = devices.map(d => `<option value="${wkEsc(d.id)}">${wkEsc(d.name)}</option>`).join('') || '<option value="">Sin SITEs registrados</option>';
+      if (devices.some(d => d.id === prefer)) sel.value = prefer;
+      wkTgLoad();
+    }
+
+    function wkTgLoad() {
+      const d = wkTgDev();
+      document.getElementById('wk-tg-chat').value = d ? (d.telegramChatId || '') : '';
+      document.getElementById('wk-tg-loss').checked = wkCfg().loss !== false;
+      wkTgStatus();
+    }
+
+    function wkTgStatus() {
+      const d = wkTgDev(), tok = /^\d{6,}:[\w-]{25,}$/.test(getBotToken()), chat = d && d.telegramChatId, chatOk = !!chat && !wkTgChatError(chat);
+      const chip = (ok, t) => `<span style="color:${ok ? 'var(--status-normal)' : 'var(--status-warning)'};"><i class="fa-solid fa-${ok ? 'circle-check' : 'triangle-exclamation'}"></i> ${t}</span>`;
+      document.getElementById('wk-tg-status').innerHTML =
+        chip(tok, tok ? 'Bot Token guardado (' + wkEsc(wkMaskTok(getBotToken())) + ')' : (getBotToken() ? 'El Bot Token guardado no tiene formato válido: «' + wkEsc(wkMaskTok(getBotToken())) + '» (debe verse así: 123456789:AA...)' : 'Falta el Bot Token (sección Notificaciones Telegram)')) + '<br>' +
+        chip(chatOk, chat ? (chatOk ? 'Chat ID vinculado a este SITE' : 'El Chat ID guardado no es válido: debe ser solo números (no pegues aquí el Bot Token)') : 'Este SITE no tiene Chat ID: no recibirá notificaciones');
+    }
+
+    function wkTgPref() {
+      const c = wkCfg(); c.loss = document.getElementById('wk-tg-loss').checked;
+      localStorage.setItem(WK_CFG, JSON.stringify(c));
+    }
+
+    async function wkTgSend(chatId, text) {
+      const token = getBotToken();
+      if (!token) return { ok: false, desc: 'Falta el Bot Token (sección Notificaciones Telegram)' };
+      if (!chatId) return { ok: false, desc: 'Falta el Chat ID' };
+      try {
+        const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text })
+        });
+        const j = await r.json();
+        return { ok: !!j.ok, desc: wkTgHint(j.description || '') };
+      } catch (e) { return { ok: false, desc: 'No se pudo contactar a Telegram (revisa tu conexión)' }; }
+    }
+
+    async function wkTgSave() {
+      const d = wkTgDev();
+      if (!d) return showToast('Selecciona un SITE', 'warning');
+      const bad = wkTgChatError(document.getElementById('wk-tg-chat').value.trim());
+      if (bad) { wkMsg(bad, 'error', 'wk-tg-msg'); return showToast('Chat ID no válido', 'error'); }
+      const c = wkCfg(); c.tgSite = d.id; localStorage.setItem(WK_CFG, JSON.stringify(c));
+      try {
+        await apiFetch(`${API_BASE}/devices/${d.id}/thresholds`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegramChatId: document.getElementById('wk-tg-chat').value.trim() })
+        });
+        await fetchDevices();
+        wkTgRender();
+        showToast('Chat ID guardado', 'success');
+      } catch (e) { /* apiFetch ya muestra el error */ }
+    }
+
+    async function wkTgTest() {
+      const d = wkTgDev();
+      if (!d) return showToast('Selecciona un SITE', 'warning');
+      const bad = wkTgChatError(document.getElementById('wk-tg-chat').value.trim());
+      if (bad) { wkMsg(bad, 'error', 'wk-tg-msg'); return showToast('Chat ID no válido', 'error'); }
+      const l = wkLog[0], ult = l ? `\nÚltima lectura: ${l.temperature}°C / ${l.humidity}% / agua ${l.waterDetected ? 'detectada' : 'seca'}` : '';
+      const r = await wkTgSend(document.getElementById('wk-tg-chat').value.trim(), `🧪 Prueba desde Wokwi — SITE ${d.id} (${d.name}): el sensor ESP32 está vinculado a este chat.${ult}`);
+      wkMsg(r.ok ? 'Notificación de prueba enviada. Revisa tu Telegram.' : 'Telegram respondió: ' + wkEsc(r.desc), r.ok ? 'ok' : 'error', 'wk-tg-msg');
+      showToast(r.ok ? 'Notificación de prueba enviada' : 'No se pudo enviar a Telegram', r.ok ? 'success' : 'error');
+    }
+
+    const wkMaskTok = t => t.includes(':') ? t.split(':')[0] + ':••••' + t.slice(-3) : (t.length > 14 ? t.slice(0, 4) + '••••' + t.slice(-3) : t);
+
+    async function wkTgCheck() {
+      const t = getBotToken();
+      if (!t) return wkMsg('No hay Bot Token guardado. Pégalo en <em>Notificaciones Telegram → Token Global</em> y pulsa <strong>Guardar Token</strong>.', 'error', 'wk-tg-msg');
+      try {
+        const r = await (await fetch(`https://api.telegram.org/bot${t}/getMe`)).json();
+        wkMsg(r.ok
+          ? `✓ Token válido: bot <strong>@${wkEsc(r.result.username)}</strong>. Si la prueba falla, el problema es el Chat ID, o falta pulsar Start en ese bot.`
+          : `Telegram rechazó el token guardado (${wkEsc(r.description)}). Es uno viejo, revocado o un valor equivocado: guarda el token vigente en <em>Notificaciones Telegram → Token Global</em>.`,
+          r.ok ? 'ok' : 'error', 'wk-tg-msg');
+      } catch (e) { wkMsg('No se pudo contactar a Telegram (revisa tu conexión).', 'error', 'wk-tg-msg'); }
+    }
+
+    function wkTgChatError(v) {
+      if (!v) return '';
+      if (/^\d{6,}:[\w-]{25,}$/.test(v)) return 'Eso es un <strong>Bot Token</strong>, no un Chat ID. Pégalo en <em>Notificaciones Telegram → Token Global</em>. El Chat ID es solo números (ej. 8073863464).';
+      if (!/^(-?\d{5,}|@\w{4,})$/.test(v)) return 'El Chat ID debe ser solo números (ej. 8073863464; los grupos empiezan con -).';
+      return '';
+    }
+
+    function wkTgHint(d) {
+      if (/unauthorized/i.test(d)) return 'El Bot Token guardado es inválido o fue revocado (Unauthorized). Pulsa «Verificar Bot Token» y, si falla, guarda el token vigente en Notificaciones Telegram → Token Global.';
+      if (/chat not found/i.test(d)) return 'Chat ID incorrecto, o todavía no le has dado Start a tu bot en Telegram.';
+      if (/can't initiate|blocked/i.test(d)) return 'Abre tu bot en Telegram y pulsa Start para permitirle escribirte.';
+      return d;
+    }
+
+    // Aviso de sin señal / señal restablecida (solo si ya se recibieron datos frescos en esta sesión)
+    function wkCheckSignal() {
+      if (!wkTimer || !wkSawFresh || !wkLastTs) return;
+      const dead = Date.now() - wkLastTs > 60000;
+      if (dead === wkLost) return;
+      wkLost = dead;
+      const id = (wkLog.find(x => x.devId) || {}).devId, d = devices.find(x => x.id === id);
+      if (!d || !d.telegramChatId || wkCfg().loss === false) return;
+      wkTgSend(d.telegramChatId, dead
+        ? `⚠️ SIN SEÑAL EN ${d.id} (${d.name})\n\nEl sensor ESP32 de Wokwi dejó de enviar datos hace más de 1 minuto.`
+        : `✅ SEÑAL RESTABLECIDA EN ${d.id} (${d.name})\n\nEl sensor ESP32 de Wokwi volvió a enviar datos.`
+      ).then(r => { if (!r.ok) showToast('Telegram: ' + wkEsc(r.desc), 'error'); });
+    }
+
+    /* ---------- Historial propio de Wokwi (solo lecturas que llegaron por el puente) ---------- */
+    const WK_HIST = 'sg_wokwi_history';
+    const WK_HIST_MAX = 5000;
+    function wkHistAll() { try { return JSON.parse(localStorage.getItem(WK_HIST)) || []; } catch (e) { return []; } }
+    function wkStoreHistory(devId, r) {
+      const all = wkHistAll();
+      all.push({
+        deviceId: devId, seq: r.seq, timestamp: new Date().toISOString(),
+        temperature: r.temperature, humidity: r.humidity, waterDetected: r.waterDetected, level: r.level
+      });
+      try { localStorage.setItem(WK_HIST, JSON.stringify(all.slice(-WK_HIST_MAX))); } catch (e) { /* almacenamiento lleno */ }
+    }
+
+    /* ---------- Notificaciones Telegram del sensor Wokwi (por cambio de estado) ---------- */
+    const WK_TG_STATE = 'sg_wokwi_tg_state';
+    let wkTgBusy = false;
+    function wkTgState() { try { return JSON.parse(localStorage.getItem(WK_TG_STATE)) || {}; } catch (e) { return {}; } }
+
+    // Mismas reglas que usa la página para pintar las alertas
+    function wkAlertKey(d, r) {
+      const k = [];
+      if (r.waterDetected) k.push('FUGA DE AGUA');
+      if (r.temperature > d.maxTemp) k.push('TEMPERATURA ALTA');
+      else if (r.temperature < d.minTemp) k.push('TEMPERATURA BAJA');
+      if (r.humidity > d.maxHumidity) k.push('HUMEDAD ALTA');
+      else if (r.humidity < d.minHumidity) k.push('HUMEDAD BAJA');
+      return k.length ? k.join('+') : 'NORMAL';
+    }
+
+    // El mensaje usa exactamente los valores de la última lectura mostrada en el panel
+    function wkTgText(d, r, key) {
+      const vals = `Temp: ${r.temperature.toFixed(1)} °C (límites ${d.minTemp}–${d.maxTemp} °C)\n` +
+        `Humedad: ${r.humidity.toFixed(1)} % (límites ${d.minHumidity}–${d.maxHumidity} %)\n` +
+        `Agua: ${r.waterDetected ? 'DETECTADA' : 'seca'}${r.level != null ? ' · nivel ' + r.level + '%' : ''}`;
+      if (key === 'NORMAL') return `✅ NIVELES NORMALIZADOS EN ${d.id} (${d.name})\nSensor ESP32 de Wokwi\n\n${vals}`;
+      return `🚨 ALERTA: ${key.split('+').join(' + ')} EN ${d.id} (${d.name})\nSensor ESP32 de Wokwi\n\n${vals}`;
+    }
+
+    // Se llama al final de cada lote. Compara el estado de la última lectura con el último estado notificado.
+    async function wkNotifyLatest(batch) {
+      if (wkTgBusy) return;
+      const matched = batch.filter(r => r.devId);
+      if (!matched.length) return;
+      const last = matched[matched.length - 1];
+      const d = devices.find(x => x.id === last.devId);
+      if (!d) return;
+
+      const key = wkAlertKey(d, last);
+      const st = wkTgState();
+      const prev = st[d.id] || 'NORMAL';
+      if (key === prev) return;
+
+      const token = getBotToken();
+      if (!token || !d.telegramChatId) {
+        wkMsg(`Hay un cambio en el sensor, pero falta ${!token ? 'el Bot Token (Notificaciones Telegram)' : 'el Chat ID de este SITE'} para avisar por Telegram.`, 'warn', 'wk-tg-msg');
+        return;
+      }
+
+      wkTgBusy = true;
+      try {
+        const r = await wkTgSend(d.telegramChatId, wkTgText(d, last, key));
+        if (r.ok) {
+          st[d.id] = key;
+          localStorage.setItem(WK_TG_STATE, JSON.stringify(st));
+          wkMsg(`Notificación enviada a Telegram: ${key === 'NORMAL' ? 'niveles normalizados' : key.split('+').join(' + ')}.`, 'ok', 'wk-tg-msg');
+        } else {
+          // Se queda sin marcar: el siguiente lote lo vuelve a intentar
+          wkMsg('Telegram no aceptó la notificación: ' + wkEsc(r.desc), 'error', 'wk-tg-msg');
+          showToast('Telegram: ' + wkEsc(r.desc), 'error');
+        }
+      } finally {
+        wkTgBusy = false;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { const c = wkCfg(); if (c.on && c.url) wkStart(); });
   </script>
 </body>
 </html>
