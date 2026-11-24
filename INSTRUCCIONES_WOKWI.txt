@@ -1,0 +1,127 @@
+=====================================================
+  SensoriX + WOKWI  |  GUIA PASO A PASO
+=====================================================
+Flujo:  ESP32 + DHT22 (Wokwi)  ->  Google Apps Script  ->  Pagina SensoriX
+
+ARCHIVOS DE ESTA CARPETA
+  Wokwi_ESP32_DHT22.ino         Codigo del ESP32 (va en sketch.ino de Wokwi)
+  diagram.json                  Circuito: ESP32 + DHT22 + sensor de agua (slider)
+  libraries.txt                 Librerias que necesita Wokwi
+  Apps_Script_SensoriX.gs       Puente en Google Apps Script
+  SensoriX_Wokwi_Integrado.html Tu pagina SensoriX con el nuevo apartado "Conexion Wokwi"
+
+-----------------------------------------------------
+PASO 1 - Crear el proyecto en Wokwi
+-----------------------------------------------------
+1. Entra a https://wokwi.com e inicia sesion (gratis).
+2. New Project -> ESP32 -> Arduino (ESP32).
+3. Pestana sketch.ino    : borra todo y pega Wokwi_ESP32_DHT22.ino
+4. Pestana diagram.json  : borra todo y pega diagram.json
+5. Pestana libraries.txt : (si no existe, usa el icono "+") pega libraries.txt
+
+-----------------------------------------------------
+PASO 2 - Crear el puente en Google Apps Script
+-----------------------------------------------------
+1. Entra a https://script.google.com -> Nuevo proyecto.
+2. Borra el codigo y pega Apps_Script_SensoriX.gs
+3. Cambia API_KEY por una clave tuya (anotala).
+4. Implementar -> Nueva implementacion -> engrane -> Aplicacion web:
+     Ejecutar como ........ Yo
+     Quien tiene acceso ... Cualquier persona
+5. Implementar -> Autorizar acceso -> elige tu cuenta -> Avanzado ->
+   "Ir a (proyecto)" -> Permitir.
+6. Copia la URL que termina en /exec
+
+Si despues cambias el codigo: Implementar -> Administrar implementaciones ->
+lapiz -> Version: Nueva version -> Implementar (la URL se conserva).
+
+-----------------------------------------------------
+PASO 3 - Poner tu URL y tu clave en el ESP32
+-----------------------------------------------------
+En sketch.ino cambia:
+   SCRIPT_URL  -> la URL /exec del paso 2
+   API_KEY     -> la misma clave del paso 2
+   SITE_NOMBRE -> el NOMBRE del SITE tal cual lo registraste en SensoriX
+                  (no el numero de segmento). Ej.: Sala Servidores 1
+Pulsa Play (boton verde). El monitor serial debe mostrar:
+   Conectando a WiFi... OK
+   Puente -> {"ok":true,"seq":1}     (solo el primer envio: confirma la clave)
+   T=24.0 C  H=45.0 %  Agua=NO (0 %)  -> enviado
+
+-----------------------------------------------------
+PASO 4 - Conectar la pagina SensoriX
+-----------------------------------------------------
+1. Abre SensoriX_Wokwi_Integrado.html en el navegador.
+2. Registra un SITE si aun no tienes (Dashboard General -> Anadir SITE).
+3. Menu lateral -> "Conexion Wokwi".
+4. Pega la URL /exec y la clave. El SITE se detecta solo por su NOMBRE:
+   debe ser igual a SITE_NOMBRE del .ino (no importan mayusculas ni acentos).
+5. "Probar conexion" y luego "Guardar y conectar".
+   El estado cambia a RECIBIENDO DATOS y en "Detalle de SITE" veras
+   la etiqueta SENSOR REAL.
+
+-----------------------------------------------------
+PASO 5 - Probar alertas
+-----------------------------------------------------
+- Clic en el DHT22 dentro de Wokwi y mueve los controles de temperatura
+  y humedad. Si superas los limites del SITE, SensoriX genera la alerta
+  (y el mensaje de Telegram si lo configuraste).
+- Sensor de agua = slider en D34 (nivel 0-100 %). Wokwi no trae un sensor de
+  agua, asi que el slider simula la salida analogica de un modulo de agua.
+  Por encima de 35 % = AGUA DETECTADA (se envia al instante, enciende el LED).
+  Por debajo de 25 % = SECO. Si arranca en AGUA, bajalo al minimo.
+
+-----------------------------------------------------
+PASO 6 - Telegram para el SITE de Wokwi
+-----------------------------------------------------
+1. Guarda el Bot Token en la seccion "Notificaciones Telegram" de la pagina.
+2. En "Conexion Wokwi" -> tarjeta "Notificaciones de Telegram": elige el SITE
+   (el de SITE_NOMBRE), pega su Chat ID y pulsa "Guardar Chat ID".
+3. Pulsa "Verificar Bot Token" (comprueba solo el token) y luego "Enviar prueba": si falla, la pagina muestra el motivo que da Telegram
+   (por ejemplo "chat not found" = Chat ID mal, o falta pulsar Start en tu bot).
+4. Cada alerta se manda una vez y no se repite en 5 minutos. Tambien recibes
+   "SIN SEÑAL" si el ESP32 deja de enviar datos y "SEÑAL RESTABLECIDA" al volver.
+
+-----------------------------------------------------
+SOLUCION DE PROBLEMAS
+-----------------------------------------------------
+EL ICONO WiFi DE WOKWI DICE "Error" / se queda en "Conectando a WiFi......"
+   Es la red de Wokwi, no el codigo. Prueba en este orden:
+   1. Brave: toca el icono del leon y desactiva Shields para wokwi.com; recarga.
+   2. Desactiva VPN, bloqueadores de anuncios o DNS privado.
+   3. Cambia de red (WiFi <-> datos moviles) o prueba en el navegador de la PC.
+   4. Detén la simulacion y vuelve a darle Play. No uses "Enable private gateway"
+      (es para redes locales y no hace falta).
+   El sketch reinicia el intento de WiFi cada 15 s y el sensor sigue funcionando.
+
+PRUEBA RAPIDA DEL PUENTE (hazla primero)
+   Abre en una ventana de INCOGNITO:
+      TU_URL_/exec?action=read&key=TU_CLAVE
+   Debe mostrar:  {"ok":true,"seq":0,"readings":[]}
+   - Si pide iniciar sesion o dice "No se puede abrir el archivo":
+     el Web App no es publico o la URL es incorrecta. Haz Implementar ->
+     Nueva implementacion -> Aplicacion web -> Ejecutar como: Yo,
+     Acceso: Cualquier persona, y usa la URL NUEVA (termina en /exec,
+     no en /dev). Esto causa tanto "Sin respuesta del Apps Script"
+     en la pagina como "HTTP -1" en el ESP32.
+   - Si ves un error de autorizacion: en el editor elige la funcion doGet,
+     pulsa Ejecutar -> Revisar permisos -> Permitir, y crea una nueva version.
+   - Si dice "Clave API incorrecta": el puente SI funciona, solo corrige la clave.
+
+El monitor serial muestra WiFi/DNS/TLS cuando hay "HTTP -1": te dice donde falla.
+La pagina avisa "sin SITE" si ningun SITE se llama igual que SITE_NOMBRE.
+
+HTTP 200 pero {"ok":false,"error":"Clave API incorrecta"}
+   -> API_KEY distinta entre el .ino y el .gs (o la pagina).
+HTTP -1 (connection refused)
+   -> Mira las lineas WiFi / DNS / TLS que imprime el monitor. Si todas dicen OK,
+      SCRIPT_URL esta mal (debe empezar con https:// y terminar en /exec).
+Error leyendo el DHT22
+   -> Revisa que SDA este en D15 y que diagram.json se pego completo.
+La pagina dice ESPERANDO ESP32
+   -> La simulacion esta detenida o la pestana de Wokwi se durmio. Dale Play.
+"Probar conexion" falla en la pagina
+   -> Revisa URL y clave; abre la URL /exec?action=read&key=TU_CLAVE en el navegador.
+No llegan datos tras editar el .gs
+   -> Crea una Nueva version de la implementacion (ver paso 2).
+Nota: la pagina y la simulacion deben estar abiertas a la vez para que fluyan los datos.

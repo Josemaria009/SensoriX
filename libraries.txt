@@ -1,0 +1,4 @@
+# Wokwi Library List
+# Pega estas lineas en la pestana "libraries.txt" de tu proyecto Wokwi
+DHT sensor library
+Adafruit Unified Sensor

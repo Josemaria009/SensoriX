@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "author": "SensoriX",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht", "top": -18.9, "left": 160.2, "attrs": { "temperature": "24", "humidity": "45" } },
+    { "type": "wokwi-slide-potentiometer", "id": "agua", "top": 110, "left": 175, "attrs": { "travelLength": "30", "value": "0" } }
+  ],
+  "connections": [
+    [ "esp:TX0", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX0", "$serialMonitor:TX", "", [] ],
+    [ "dht:VCC", "esp:3V3", "red", [ "v0" ] ],
+    [ "dht:GND", "esp:GND.1", "black", [ "v0" ] ],
+    [ "dht:SDA", "esp:D15", "green", [ "v0" ] ],
+    [ "agua:VCC", "esp:3V3", "red", [ "v0" ] ],
+    [ "agua:GND", "esp:GND.1", "black", [ "v0" ] ],
+    [ "agua:SIG", "esp:D34", "orange", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}
